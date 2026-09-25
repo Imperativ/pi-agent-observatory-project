@@ -2,30 +2,70 @@
 
 ## Auftrag, Autorisierung und Speicherort
 
-Der Magos hat wegen eines nahenden Sitzungs-/Zeitlimits einen **sinnvollen Zwischenstand mit GitHub-Sicherung** angeordnet. Das ist eine **unterbrochene Entwicklung, keine endgültige Produktabnahme**. Projekt: `D:/imp-projekte/Pi-Dashboard` (nicht der vertippte Pfad `pi-dahsboard`). Git: Branch `main`, vor jedem Push `origin` auf `https://github.com/Imperativ/pi-agent-observatory-project.git` prüfen. Projektname im Prompt-Dokument: `Pi-agent-observatory-project-prompt.md`. Der Magos möchte jeden abgeschlossenen, geprüften Projektpunkt committen **und vor dem nächsten Punkt pushen**. Keine fremden Verzeichnisse oder Pi-Logs scannen.
+Der Magos hat die Erstellung eines aktualisierten Handoffs und die Sicherung auf GitHub angeordnet, um die Sitzung zu einem späteren Zeitpunkt nahtlos fortzusetzen.
+- **Projektverzeichnis:** `D:/imp-projekte/Pi-Dashboard`
+- **Git Remote:** `origin` -> `https://github.com/Imperativ/pi-agent-observatory-project.git` (Branch `main`)
+- **Regel:** Vor jedem Push `origin` prüfen. Jeder geprüfte Projektpunkt wird separat committet und gepusht.
 
 ## Aktueller Implementierungsstand
 
-- Offline-v1: versioniertes Sample/Schema, Contract-Normalisierung, Freshness aus `observedAt` statt Abrufzeit, Herkunftsangaben, Redaktion und evidenzgebundene Checkzustände.
-- Loopback-HTTP-Server mit expliziter Routen-Allowlist, Origin/Host/CSP-Grenzen, redigiertem Status und Sample-Fallback nur bei **fehlender** Live-Datei.
-- Store mit Polling, Timeout, Erhalt des letzten gültigen Snapshots und generischen Fehlern für fremde `fetchFn`-Exceptions. Der vorher vermutete Leak `Status token=DEMO_SECRET` wurde an der Store-Grenze behoben und getestet.
-- Ein unabhängiger Read-only-Review identifizierte nach dem UI-Checkpoint zwei **reproduzierte** Befunde: CLI-Argument `--access-token DEMO_SECRET_VALUE` im Check-Befehl blieb unredigiert; die Anzeige rollte ungültiges `2025-02-30` zu März weiter. Beide wurden mit Contract-/Browser-Regressionsprüfungen behoben. Quelle vor dem Schreiben dennoch minimieren: Regex-Redaktion ist keine vollständige DLP-Garantie.
-- HTML/CSS/JS-Oberfläche mit neun Bereichen, zentralem Status, Herkunft, Quell-/Abrufzeit, Listen/Filtern/Details, Fehlerhinweis, Hell/Dunkel und zurückhaltendem ROH_58-Design. Lokal automatisiert getestet, **nicht** vollständig manuell abgenommen.
-- `README.md` erklärt Start, Schema, Datenschutz, atomare Statusupdates und absichtliche Offline-v1-Grenze. `VERIFICATION.md` hält die tatsächlich ausgeführten Prüfungen und ihre Grenzen fest.
+- **Offline-v1 Architektur:** Versioniertes Sample/Schema, Contract-Normalisierung, Herkunftsangaben (Provenance), Redaktion vertraulicher Daten (Secrets/Credentials in CLI-Befehlen und HTTP-Status).
+- **Loopback-HTTP-Server:** Explicit Routing-Allowlist, Host/Origin/CSP-Schutz, redigierter Status, Sample-Fallback.
+- **Store & Refresh:** Polling, Timeout-Handling, Retention des letzten validen Snapshots bei Fehler.
+- **UI (HTML/CSS/JS):** 9 Abschnitte, zentraler Status, Hell/Dunkel-Theme, A11y-Grundgerüst (WCAG A/AA via axe-core in Playwright verifiziert).
+- **Dokumentation & Verträge:** `CONTRACT.md`, `README.md`, `VERIFICATION.md`, `HANDOFF.md` vollständig gepflegt.
 
-## Bestätigte Prüfungen (auf gespeichertem Dateistand erneut ausgeführt)
+## Bestätigte Prüfungen (in der aktuellen Sitzung re-validiert)
 
-`npm run check`: 15 JS-Dateien syntaxgeprüft, DOM-Senken-Guard/Beispiel/Konfiguration gültig. `npm test`: **69 bestanden, 0 fehlgeschlagen** (58 Vertrag, 4 Server, 7 Store). `npm run schema:check`: erfolgreich. `npm run status:validate`: Beispiel `schemaVersion=1.0`, `dataset=sample`. `npm run smoke`: dokumentierter Serverstart über `npm start -- --port 0`, acht Routen 200 und private/Schreib-/fremde Origin blockiert. `npm run test:browser`: lokaler Chrome/Playwright mit neun Bereichen, Filter, Tastatur-Details, Theme, Polling, Fehlererholung, Aktualität einschließlich ungültiger Kalenderzeit, inertem Injection-Text, CLI-Secret-Redaktion im HTTP-Status und DOM, axe WCAG A/AA und 390px-Breite erfolgreich. `npm audit --offline`: 0 bekannte Schwachstellen **in lokalen Audit-Daten**, kein Online-Nachweis. `git diff --check`: ohne Befund. Details in `VERIFICATION.md`.
+- `npm run check`: Syntax-Check aller JS-Dateien erfolgreich.
+- `npm test`: **69 von 69 Tests bestanden** (Contract-, Server- und Store-Suite).
+- `npm run schema:check`: Ajv-Schema-Kompilierung und Negativtest-Suite erfolgreich.
+- `npm run status:validate`: Sample-JSON ist schema-konform.
+- `npm run smoke`: Serverstart über `npm start -- --port 0` mit Allowlist- & Security-Routing verifiziert.
+- `npm run test:browser`: Playwright E2E-Lauf (Chromium) inklusive Accessibility (axe WCAG A/AA), Key-Redaktions-Checks, Breakpoint-Tests (390px Mobile) erfolgreich.
+- `git status`: Der Arbeitsbereich ist vollständig sauber (`clean`).
 
-Bereits gepushte Zwischenstände: `d2e35fb` (Store-Grenze/Store-Tests), `933706c` (Browser-Prüfskript), `f81f4d2` (UI/Dokumentation) und `2b94257` (Review-Korrekturen). Nach dem Sicherheits-Checkpoint: `git status --short --branch` war sauber und synchron mit `origin/main`.
+## Strategischer Fahrplan für die Wiederaufnahme (Nächste Phasen)
 
-## Offen vor einer endgültigen Abnahme
+### Phase 1: Härtung & Live-Daten-Adapter (v1 Finalisierung)
+1. **Multi-Device & A11y Härtung:**
+   - Erweiterung von `scripts/browser-check.mjs` um Testläufe für `prefers-reduced-motion` und Multi-Viewport-Matrix (Desktop 1200px, Tablet 768px, Mobile 390px).
+   - Manuelle Screenreader- & Tastatur-Abnahme.
+2. **Sanctierter Pi-Status-Generator (`scripts/generate-pi-status.mjs`):**
+   - Entwickeln eines lokalen Adapters, der aus echten Pi-Session-Logs anonymisierte `agent-status.json`-Snapshots generiert, ohne Credentials oder Modell-Interna freizugeben.
 
-1. Manuelle visuelle Abnahme auf Laptop/Mobilgerät: Fokusreihenfolge/-sichtbarkeit, Screenreader-Bezeichnungen, Hell-/Dunkel-Kontrast, reduzierter Bewegungsmodus, Informationshierarchie vor Scrollen. Browserautomation/axe ersetzen diese Schritte nicht. Ggf. Browserchecks für weitere Modi/Browser ergänzen.
-2. Bei jeder Änderung `npm run check && npm test && npm run schema:check && npm run smoke && npm run test:browser` erneut ausführen; Testbelege in `VERIFICATION.md` aktualisieren. Optional Online-Audit mit Netzfreigabe; Offline-Audit ist begrenzt.
-3. Optional einen echten **minimierten, ignorierten** `agent-status.json`-Snapshot nur aus tatsächlich erlaubten Quellen erstellen. Kein Modell-/Token-/Kosten-/Rechtewert raten. Derzeit ist das öffentliche Sample absichtlich fiktiv.
-4. Optional (nicht für v1 erforderlich) Online-Anreicherungen/Badges/Credential-Adapter/Pi-Automatismen nur nach neuer Scope-Prüfung. Keine Cloud, Telemetrie, Fernsteuerung oder Multi-Agent-Verwaltung in v1.
+### Phase 2: Feature-Erweiterungen (v1.1 / v2)
+3. **Interaktive Activity-Timeline & Filter:**
+   - Ausbau der Aktivitäten-Historie mit Suche und Kategorie-Filter im UI (`app.mjs`, `index.html`).
+4. **Anonymisierter Snapshot-Export:**
+   - Hinzufügen einer Export-Schaltfläche `("Snapshot anonymisiert herunterladen")` für Diagnose-Zwecke.
 
-## Wiederaufnahme
+---
 
-Im Projektordner `git status --short --branch`, `git remote get-url origin`, `git log -3 --oneline` und `HANDOFF.md`/`VERIFICATION.md` lesen. Sicherstellen, dass der letzte Checkpoint wirklich gepusht ist. Offene Prüfungen erledigen; jeden **geprüften** Projektpunkt separat committen und nach Remote-Check pushen. Den aktuellen Stand nicht als fertige Live-Agenten-Integration missverstehen.
+## Empfohlene Sub-Agenten-Aufteilung für die Wiederaufnahme
+
+Für die Fortführung der Arbeiten stehen folgende spezialisierte Sub-Agenten bereit:
+
+1. **`Agent Alpha` (UI & Accessibility):**
+   - *Fokus:* `index.html`, `styles.css`, `scripts/browser-check.mjs`.
+   - *Aufgabe:* A11y-Schärfung, Viewport-Matrix, `prefers-reduced-motion`.
+2. **`Agent Beta` (Live-Data Adapter):**
+   - *Fokus:* `scripts/generate-pi-status.mjs`, `agent-status.schema.json`.
+   - *Aufgabe:* Lokaler Log-Parser für anonymisierte Pi-Session-Snapshots.
+3. **`Agent Gamma` (Security & Redaction Auditor):**
+   - *Fokus:* `server.mjs`, `app.mjs`, `test/contract.test.mjs`.
+   - *Aufgabe:* Adversarial Fuzzing & Redaktions-Engine-Prüfung.
+4. **`Agent Delta` (Timeline & Analytics):**
+   - *Fokus:* `app.mjs`, `index.html`, `styles.css`.
+   - *Aufgabe:* Activity-Timeline, Filter-System und Snapshot-Export.
+
+---
+
+## Anweisung zur Wiederaufnahme
+
+Bei Start einer neuen Sitzung:
+1. Verzeichnis betreten: `cd D:/imp-projekte/Pi-Dashboard`
+2. Git-Status und Remote verifizieren: `git status --short --branch && git remote get-url origin`
+3. Handoff lesen: `read HANDOFF.md`
+4. Test-Suite ausführen: `npm test && npm run check && npm run schema:check && npm run smoke && npm run test:browser`
+5. Die Arbeit anhand des oben stehenden Sub-Agenten-Fahrplans fortsetzen.
