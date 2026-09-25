@@ -76,7 +76,9 @@ try {
   injected.observedAt = new Date().toISOString();
   injected.assignment.goal.value = '<img src=x onerror="window.__injected=true"> AGENT_PROBE_TEXT';
   injected.assignment.step = {value: 'token=DEMO_SECRET', source: 'browser-test', observedAt: injected.observedAt, verification: 'self_reported'};
+  injected.checks.push({name: 'CLI-Argumenttest', status: 'passed', evidence: {command: 'tool --access-token DEMO_SECRET_VALUE', exitCode: 0, finishedAt: injected.observedAt, source: 'browser-test'}});
   await writeFile(statusPath, JSON.stringify(injected));
+  assert.equal((await (await fetch(base + '/status.json')).text()).includes('DEMO_SECRET_VALUE'), false, 'Statusantwort darf CLI-Secret nicht enthalten.');
   await page.getByText(/AGENT_PROBE_TEXT/).first().waitFor({timeout: 8000});
   assert.equal(await page.locator('#dashboard img').count(), 0, 'Fremdtext darf kein HTML erzeugen.');
   assert.equal(await page.evaluate(() => window.__injected === true), false, 'Fremdtext darf nicht ausführbar sein.');
@@ -100,7 +102,14 @@ try {
   await writeFile(statusPath, JSON.stringify(unknown));
   await page.getByText('AGENT_PROBE_OHNE_ZEIT').first().waitFor({timeout: 8000});
   assert.match(await page.locator('#dashboard').innerText(), /unbekannt|ungültig/i);
-  console.log('Browser: alte und fehlende Quellzeit markiert.');
+  const invalid = structuredClone(updated);
+  invalid.observedAt = '2025-02-30T01:00:00Z';
+  invalid.assignment.goal.value = 'AGENT_PROBE_UNGUELTIGE_ZEIT';
+  await writeFile(statusPath, JSON.stringify(invalid));
+  await page.getByText('AGENT_PROBE_UNGUELTIGE_ZEIT').first().waitFor({timeout: 8000});
+  assert.match(await page.locator('.clock-grid').innerText(), /Quellzeit · observedAt\s+Nicht verfügbar/i);
+  assert.match(await page.locator('#dashboard').innerText(), /Aktualität unbekannt/);
+  console.log('Browser: alte, fehlende und ungültige Quellzeit markiert.');
 
   await page.evaluate(axe.source);
   const report = await page.evaluate(() => window.axe.run(document, {runOnly: {type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']}}));

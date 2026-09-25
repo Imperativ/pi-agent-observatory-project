@@ -1,4 +1,4 @@
-import { FIELD_LABELS, freshness, uptime, redact } from './contract.mjs';
+import { FIELD_LABELS, freshness, uptime, redact, timestampMs } from './contract.mjs';
 
 const views = new WeakMap();
 const NUMBERS = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 });
@@ -50,7 +50,7 @@ function badge(node, pair) {
   tone(node, pair[1]);
 }
 function date(value) {
-  if (!value || !Number.isFinite(Date.parse(value))) return 'Nicht verfügbar';
+  if (timestampMs(value) === null) return 'Nicht verfügbar';
   return `${DATES.format(new Date(value))} UTC`;
 }
 function duration(seconds) {
