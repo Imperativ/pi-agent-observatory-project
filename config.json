@@ -1,0 +1,6 @@
+{
+  "pollIntervalMs": 3000,
+  "staleAfterMs": 120000,
+  "clockSkewMs": 5000,
+  "timeoutMs": 5000
+}

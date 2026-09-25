@@ -32,7 +32,7 @@ If your environment cannot create files, provide the complete contents of every 
 
 ### In scope
 
-- After the required kickoff questions, inspect the repository, operating system, available runtime, package management, and existing project conventions inside the confirmed target folder.
+- After completing the required kickoff (asking only unresolved questions), inspect the repository, operating system, available runtime, package management, and existing project conventions inside the confirmed target folder.
 - Preserve an existing project and integrate the dashboard appropriately instead of needlessly starting over.
 - Implement a local web interface with the following standardized sections:
   1. **Identity:** Agent name, provider/product, reported model, model version or alias, instance/session ID, start time, and uptime.
@@ -116,18 +116,26 @@ Implement and run the following core checks using the lightest suitable test set
 
 Use automated tests for deterministic logic and security-sensitive cases; supplement them with a concise manual checklist for keyboard navigation, focus visibility, color-independent status, dark/light modes, and responsive layout. Report each command and its actual result. If a test category cannot be run in the available environment, identify it explicitly rather than implying coverage.
 
+## Agent orchestration during implementation
+
+After kickoff and repository inspection, assess the available delegation tools, isolation options, task dependencies, expected integration cost, and likely wall-clock benefit. Make a short execution map identifying the shared contract, critical path, parallelizable deliverables, file owners, and verification steps. **If agents are available and delegation offers a real net benefit, actually use them during implementation and/or independent review**; do not merely propose their use. If agents are unavailable or delegation would add more overhead than it saves, implement directly and state why. Do not spawn agents to duplicate work or to satisfy a fixed agent count.
+
+- **Stabilize the shared contract first:** The coordinating model owns the status schema, states, timestamps/freshness semantics, module interfaces, file ownership, and acceptance criteria. Establish these before parallel edits; create a thin runnable path early so downstream work has a verified integration target.
+- **Delegate by independent deliverable, not vague role:** Based on the inspected project, suitable parallel work may include UI/layout, data normalization and polling, tests/documentation based on the agreed contract, and a read-only security/accessibility review. Choose only separable tasks; do not run work that depends on unfinished interfaces as though it were independent. Keep optional online work off the offline core's critical path.
+- **Give each agent a bounded brief:** Include the confirmed target folder, relevant contract and constraints, owned files or read-only scope, expected output, and concrete checks. Assign exclusive ownership of shared files or use isolated worktrees when supported; never allow concurrent edits to the same file. Reserve cross-cutting integration and decisions about conflicting outputs for the coordinator. Do not authorize subagents to push, discard user changes, or modify unrelated files.
+- **Integrate and verify centrally:** Review actual file changes and test evidence, not just agents' summaries. Merge work incrementally, exercise the thin end-to-end path after each integration boundary, resolve interface mismatches, and run the relevant checks again. Have an independent agent challenge privacy, unsafe rendering, stale-state and missing-data behavior when this adds value; confirm findings against code or tests before acting. The coordinator remains accountable for the final build, smoke check, documentation consistency, and honest report of what was and was not verified.
+
 ## Implementation workflow
 
 1. Establish the target folder and Git handling using the Required project kickoff rules: rely on already-established context, perform only the read-only checks needed to identify the target and repository state, and ask only for unresolved decisions.
-2. Create the target folder if necessary, then inspect that folder's workspace, conventions, and user changes before implementation; do not inspect unrelated folders.
-3. Preserve any existing repository and history. Initialize Git only when the folder is not already in a repository and initialization is authorized by the user or established project context.
-4. Check early which local start method and test options are actually available.
-5. Define the status schema, sample data, states, provenance, redaction rules, and optional online-source configuration.
-6. Build a thin end-to-end path first: start the application, load the status file, display overall status and assignment, and handle loading/error states.
-7. Add online enrichment and badges through clearly separated adapters with timeouts, validation, retrieval timestamps, and independent failure fallbacks.
-8. Add the remaining standardized sections, responsive design, dark/light modes, visual guidance, an optional existing persona theme, filters, and stale detection.
-9. Add schema/data validation, redaction and security checks, and documentation.
-10. Run available tests, lints, builds, and a browser/HTTP smoke test. Fix in-scope failures and rerun the affected checks.
+2. Create the target folder if necessary, then inspect that folder's workspace, conventions, user changes, available runtimes, local start methods, and test options; do not inspect unrelated folders. Preserve any existing repository and history; initialize Git only when authorized and not already in a repository.
+3. Assess whether and how to delegate according to Agent orchestration during implementation; identify dependencies, file ownership, and integration checkpoints. Use beneficial agent tasks after the shared contract is fixed, or state why no agents are used.
+4. Define the status schema, sample data, states, provenance, freshness rules, redaction rules, and optional online-source configuration as the shared contract.
+5. Build and test a thin end-to-end path: start the application, load the status file, display overall status and assignment, and handle loading/error states.
+6. In parallel where safe, add the remaining standardized sections, responsive design, dark/light modes, visual guidance, an optional existing persona theme, filters, stale detection, tests, and documentation; integrate working increments and check their interfaces.
+7. Add schema/data validation, redaction, and security checks; commission independent review if beneficial and verify its findings.
+8. Once the offline core works and passes its checks, implement online enrichment only if in scope and proportionate, with separate adapters, timeouts, validation, retrieval timestamps, and independent failure fallbacks; otherwise document deferral.
+9. Run available tests, lints, builds, and a browser/HTTP smoke test on the integrated result. Fix in-scope failures and rerun affected checks; report actual evidence and any delegation limitations.
 
 The workflow is only an execution aid. Implement and deliver the complete project within the same task.
 
@@ -172,7 +180,7 @@ Run all relevant tests, lints, builds, and smoke checks available in the project
 - Stop only for missing authority, unavailable mandatory credentials, a security/legal boundary, or a decision that would materially change product identity, data ownership, cost class, or v1 scope.
 - If blocked, complete all independent work and state the exact blocker and the next required step.
 - Verify time-sensitive external claims against authoritative sources when tools are available; otherwise mark them as unverified and protect the implementation with a test/fallback.
-- Use subagents only when the environment supports them and the complexity provides a real benefit; you remain responsible for integration and verification.
+- Evaluate delegation explicitly and follow Agent orchestration during implementation. When agents are available and useful, employ them rather than only recommending them; retain responsibility for integration and verification.
 
 ## Delivery contract
 

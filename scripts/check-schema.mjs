@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import Ajv from 'ajv';
+import {generateSchema} from './generate-schema.mjs';
+const schema = JSON.parse(await readFile(new URL('../agent-status.schema.json', import.meta.url), 'utf8'));
+const sample = JSON.parse(await readFile(new URL('../agent-status.example.json', import.meta.url), 'utf8'));
+assert.deepEqual(schema, generateSchema(), 'Schema drift: npm run schema:write ausführen.');
+const validate = new Ajv({allErrors: true, strict: true}).compile(schema);
+assert.ok(validate(sample), JSON.stringify(validate.errors));
+assert.ok(validate({schemaVersion: '1.0'}));
+assert.equal(validate({schemaVersion: '2.0'}), false);
+assert.equal(validate({schemaVersion: '1.0', usage: {inputTokens: {value: -1}}}), false);
+console.log('JSON-Schema kompiliert (Ajv strict), Beispiel/Minimalquelle gültig, Negativfälle und Drift-Check bestanden.');

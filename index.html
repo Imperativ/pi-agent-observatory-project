@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="Lokales, schreibgeschütztes Agent Observatory. Zustand, Herkunft und Grenzen eines Agenten transparent beobachten.">
+  <title>Agent Observatory · ROH_58</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.mjs"></script>
+</head>
+<body>
+  <a class="skip-link" href="#inhalt">Zum Inhalt springen</a>
+  <header class="site-header">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">58</span>
+      <div><span class="brand-title">Agent Observatory</span><span class="brand-caption">ROH_58 · Observatorium / Nur lesen</span></div>
+    </div>
+    <div class="header-actions">
+      <span class="local-label">LOKAL · OHNE TELEMETRIEVERSAND</span>
+      <button id="reload" type="button">Neu laden</button>
+      <button id="theme-toggle" type="button" aria-label="Farbschema wechseln">Farbschema</button>
+    </div>
+  </header>
+  <main id="inhalt" tabindex="-1">
+    <div id="config-status" class="notice" role="status" aria-live="polite">Lokale Konfiguration wird geprüft …</div>
+    <noscript><p class="notice error">JavaScript ist erforderlich. Die Oberfläche liest ausschließlich die lokalen Endpunkte /config.json und /status.json. Bitte JavaScript aktivieren und diese Seite über den lokalen Server öffnen.</p></noscript>
+    <div id="dashboard"></div>
+  </main>
+  <footer class="site-footer">
+    <span>ROH_58 / Bewahrung vor Veränderung</span>
+    <span>Nur lokale Statusdaten · Keine Steuerung des Agenten · Keine Online-Anreicherung</span>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,158 @@
+import { createStore } from './src/store.mjs';
+import { renderDashboard } from './src/render.mjs';
+
+const CONFIG_FIELDS = ['pollIntervalMs', 'staleAfterMs', 'clockSkewMs', 'timeoutMs'];
+
+function validateConfig(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Die Konfiguration muss ein JSON-Objekt sein.');
+  }
+  const result = {};
+  for (const key of CONFIG_FIELDS) {
+    const number = value[key];
+    const minimum = key === 'clockSkewMs' ? 0 : 1;
+    if (typeof number !== 'number' || !Number.isFinite(number) || number < minimum || number > 2_147_483_647) {
+      throw new Error(`Konfigurationsfeld ${key} fehlt oder ist ungültig.`);
+    }
+    result[key] = number;
+  }
+  return result;
+}
+
+/** The DOM is the only adapter here; the store remains replaceable by an event source. */
+export function startDashboard(documentRef = document, windowRef = window) {
+  const root = documentRef.getElementById('dashboard');
+  const configNotice = documentRef.getElementById('config-status');
+  const reloadButton = documentRef.getElementById('reload');
+  const themeButton = documentRef.getElementById('theme-toggle');
+  if (!root || !configNotice || !reloadButton || !themeButton) return () => {};
+
+  let config = null;
+  let store = null;
+  let pollTimer = null;
+  let tickTimer = null;
+  let configController = null;
+  let booting = false;
+  let stopped = false;
+  let themePreference = null;
+  const darkPreference = windowRef.matchMedia('(prefers-color-scheme: dark)');
+  try {
+    const saved = windowRef.localStorage.getItem('observatory-theme');
+    if (saved === 'light' || saved === 'dark') themePreference = saved;
+  } catch { /* Storage is optional; the toggle still works in memory. */ }
+
+  function applyTheme() {
+    const theme = themePreference || (darkPreference.matches ? 'dark' : 'light');
+    documentRef.documentElement.dataset.theme = theme;
+    themeButton.textContent = theme === 'dark' ? 'Hellmodus' : 'Dunkelmodus';
+    themeButton.setAttribute('aria-label', theme === 'dark' ? 'Zum Hellmodus wechseln' : 'Zum Dunkelmodus wechseln');
+  }
+  function toggleTheme() {
+    themePreference = documentRef.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    try { windowRef.localStorage.setItem('observatory-theme', themePreference); } catch { /* Optional. */ }
+    applyTheme();
+  }
+  applyTheme();
+  themeButton.addEventListener('click', toggleTheme);
+  darkPreference.addEventListener('change', applyTheme);
+
+  function paint(state = store?.getState()) {
+    if (stopped || !config || !state) return;
+    renderDashboard(root, state, config, Date.now());
+    reloadButton.setAttribute('aria-busy', String(state.loading));
+    // Keep the button enabled and its accessible name stable while it owns focus.
+  }
+
+  function schedulePoll() {
+    windowRef.clearTimeout(pollTimer);
+    if (!stopped && store) {
+      pollTimer = windowRef.setTimeout(async () => {
+        await store.refresh();
+        schedulePoll();
+      }, config.pollIntervalMs);
+    }
+  }
+
+  async function initialize() {
+    if (booting || stopped) return;
+    booting = true;
+    reloadButton.setAttribute('aria-busy', 'true');
+    configNotice.hidden = false;
+    configNotice.className = 'notice';
+    configNotice.textContent = 'Lokale Konfiguration wird geprüft …';
+    configController = new AbortController();
+    // Bootstrap timeout, not a purportedly loaded configuration value.
+    const timer = windowRef.setTimeout(() => configController?.abort(), 5000);
+    try {
+      const response = await windowRef.fetch('/config.json', {
+        cache: 'no-store', signal: configController.signal, credentials: 'same-origin',
+      });
+      if (!response.ok) throw new Error(`Konfigurationsabruf: HTTP ${response.status}.`);
+      const text = await response.text();
+      if (text.length > 4096) throw new Error('Die Konfiguration überschreitet die zulässige Größe.');
+      let value;
+      try { value = JSON.parse(text); } catch { throw new Error('Die Konfiguration enthält kein gültiges JSON.'); }
+      const validated = validateConfig(value);
+      if (stopped) return;
+      config = validated;
+      configNotice.hidden = true;
+      store = createStore({
+        url: '/status.json',
+        fetchFn: windowRef.fetch.bind(windowRef),
+        now: Date.now,
+        timeoutMs: config.timeoutMs,
+        onChange: paint,
+      });
+      paint();
+      tickTimer = windowRef.setInterval(() => paint(), 1000);
+      await store.refresh();
+      schedulePoll();
+    } catch (error) {
+      if (!stopped) {
+        const reason = error?.name === 'AbortError'
+          ? 'Zeitüberschreitung beim Konfigurationsabruf (5 Sekunden).'
+          : error instanceof Error ? error.message : 'Der Konfigurationsabruf ist fehlgeschlagen.';
+        configNotice.className = 'notice error';
+        configNotice.textContent = `Konfiguration nicht verfügbar. ${reason} Es werden keine ungeprüften Standardwerte verwendet. Lokalen Server und config.json prüfen; mit „Neu laden“ erneut versuchen.`;
+        configNotice.hidden = false;
+      }
+    } finally {
+      windowRef.clearTimeout(timer);
+      configController = null;
+      booting = false;
+      if (!stopped) reloadButton.setAttribute('aria-busy', 'false');
+    }
+  }
+
+  async function refresh() {
+    if (stopped) return;
+    if (!store) return initialize();
+    windowRef.clearTimeout(pollTimer);
+    await store.refresh();
+    schedulePoll();
+  }
+  reloadButton.addEventListener('click', refresh);
+
+  function stop() {
+    stopped = true;
+    windowRef.clearTimeout(pollTimer);
+    windowRef.clearInterval(tickTimer);
+    configController?.abort();
+    store?.stop();
+    reloadButton.removeEventListener('click', refresh);
+    themeButton.removeEventListener('click', toggleTheme);
+    darkPreference.removeEventListener('change', applyTheme);
+    windowRef.removeEventListener('pagehide', onPageHide);
+  }
+  function onPageHide(event) {
+    // A page in the back/forward cache is frozen by the browser, not destroyed.
+    if (!event.persisted) stop();
+  }
+  windowRef.addEventListener('pagehide', onPageHide);
+  void initialize();
+  return stop;
+}
+
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  startDashboard();
+}

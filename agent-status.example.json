@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "1.0",
+  "dataset": "sample",
+  "observedAt": "2026-01-01T12:00:00Z",
+  "identity": {
+    "name": {"value": "ROH_58 · Demonstration", "source": "Explizite Beispieldaten, keine Live-Telemetrie", "observedAt": "2026-01-01T12:00:00Z", "verification": "self_reported"},
+    "provider": {"value": "Agent Observatory · Beispiel", "source": "Beispieldatensatz", "observedAt": "2026-01-01T12:00:00Z", "verification": "self_reported"},
+    "model": {"value": null, "verification": "unavailable"},
+    "modelVersion": {"value": null, "verification": "unavailable"},
+    "sessionId": {"value": "demo-local-only", "source": "Fiktive Beispielsitzung", "observedAt": "2026-01-01T12:00:00Z", "verification": "self_reported"},
+    "startedAt": {"value": null, "verification": "unavailable"}
+  },
+  "assignment": {
+    "goal": {"value": "Agentenstatus nachvollziehbar sichtbar machen", "source": "Fiktiver Demonstrationsauftrag", "observedAt": "2026-01-01T12:00:00Z", "verification": "self_reported"},
+    "step": {"value": "Statusvertrag prüfen und fehlende Messwerte kennzeichnen", "source": "Fiktiver Demonstrationsschritt", "observedAt": "2026-01-01T12:00:00Z", "verification": "self_reported"},
+    "state": {"value": "waiting", "source": "Beispiel, nicht der aktuelle Agentenzustand", "observedAt": "2026-01-01T12:00:00Z", "verification": "self_reported"},
+    "progress": {"value": {"completed": 2, "total": 5, "basis": "Nur Demonstration: 2 von 5 fiktiven gleich gewichteten Prüfschritten"}, "source": "Beispieldatensatz", "observedAt": "2026-01-01T12:00:00Z", "verification": "self_reported"}
+  },
+  "capabilities": {
+    "tools": {"value": ["Statusdatei lesen", "Herkunft und Aktualität darstellen"], "source": "Beispiel-Fähigkeitsliste, keine Agentenerkennung", "observedAt": "2026-01-01T12:00:00Z", "verification": "self_reported"},
+    "skills": {"value": [], "source": "Beispieldatensatz", "observedAt": "2026-01-01T12:00:00Z", "verification": "self_reported"},
+    "subagents": {"value": null, "verification": "unavailable"},
+    "network": {"value": "Online-Erweiterungen in v1 nicht implementiert", "source": "Offline-v1-Vertrag", "observedAt": "2026-01-01T12:00:00Z", "verification": "self_reported"}
+  },
+  "environment": {
+    "cwd": {"value": "<freigegebener Projektordner>", "source": "Platzhalter ausschließlich im Beispieldatensatz", "observedAt": "2026-01-01T12:00:00Z", "verification": "self_reported"},
+    "executionMode": {"value": "Lokale Demonstration", "source": "Beispieldatensatz", "observedAt": "2026-01-01T12:00:00Z", "verification": "self_reported"}
+  },
+  "permissions": {
+    "writeAreas": {"value": [], "source": "Dashboard ist nur lesend; keine Aussage über Agentenrechte", "observedAt": "2026-01-01T12:00:00Z", "verification": "self_reported"},
+    "restrictions": {"value": ["Keine Fernsteuerung", "Keine Telemetrie an Dritte", "Beispieldaten sind keine Rechteprüfung"], "source": "Offline-v1-Vertrag", "observedAt": "2026-01-01T12:00:00Z", "verification": "self_reported"}
+  },
+  "usage": {},
+  "activity": [
+    {"id": "demo-1", "time": "2026-01-01T11:58:00Z", "category": "information", "summary": "Beispieldatensatz geladen. Dies ist kein ausgeführter Tool-Aufruf.", "status": "info", "source": "Fiktiver Demo-Verlauf", "verification": "self_reported"},
+    {"id": "demo-2", "time": "2026-01-01T12:00:00Z", "category": "warning", "summary": "Tokenverbrauch, Kosten und Modell bleiben ohne Quelle nicht verfügbar.", "status": "warning", "source": "Fiktiver Demo-Verlauf", "verification": "self_reported"}
+  ],
+  "artifacts": [
+    {"path": "agent-status.example.json", "change": "unknown", "source": "Beispieldatensatz, keine Dateisystemmessung", "observedAt": "2026-01-01T12:00:00Z", "verification": "self_reported"}
+  ],
+  "checks": [
+    {"name": "Beispielprüfung (nicht ausgeführt)", "status": "not_run"},
+    {"name": "Externe Integrationen (nicht Teil von v1)", "status": "unknown"}
+  ],
+  "issues": [
+    {"severity": "warning", "summary": "Beispieldaten: Der feste Zeitstempel wird absichtlich nicht beim Abruf erneuert.", "nextAction": "Einen echten Status mit dokumentierter Quelle als agent-status.json bereitstellen.", "source": "Beispieldatensatz", "observedAt": "2026-01-01T12:00:00Z", "verification": "self_reported"}
+  ]
+}

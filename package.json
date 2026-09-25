@@ -1,0 +1,26 @@
+{
+  "name": "pi-agent-observatory",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local, read-only and provenance-aware agent dashboard",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test test/*.test.mjs",
+    "check": "node scripts/check.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "schema:write": "node scripts/generate-schema.mjs",
+    "schema:check": "node scripts/check-schema.mjs",
+    "test:browser": "node scripts/browser-check.mjs",
+    "status:init": "node scripts/init-status.mjs",
+    "status:validate": "node scripts/validate-status.mjs"
+  },
+  "devDependencies": {
+    "ajv": "^8.20.0",
+    "axe-core": "^4.13.0",
+    "playwright-core": "^1.63.0"
+  }
+}

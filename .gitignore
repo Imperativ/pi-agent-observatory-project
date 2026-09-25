@@ -1,0 +1,7 @@
+node_modules/
+agent-status.json
+agent-status.*.tmp
+.test-tmp-*/
+test-results/
+playwright-report/
+*.log
