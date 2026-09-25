@@ -1,56 +1,31 @@
-# Unterbrochener Zwischenstand — Agent Observatory
+# Übergabe / bewusste Pause — Pi Agent Observatory
 
-## Auftrag und Pause
+## Auftrag, Autorisierung und Speicherort
 
-Der Benutzer hat nach einem Windows-Absturz die Fortsetzung, anschließend Zwischenstands-Commits und eine Unterbrechung **nach diesem Commit** angeordnet. Anschließend wurden ausdrücklich die Dokumentumbenennung im Commit und ein Push des letzten Projektstands nach GitHub autorisiert. Nach Commit/Push bleibt die Arbeit pausiert. Dies ist ausdrücklich ein **unvollständiger Entwicklungsstand**, keine fertige oder abgenommene Anwendung.
+Der Magos hat wegen eines nahenden Sitzungs-/Zeitlimits einen **sinnvollen Zwischenstand mit GitHub-Sicherung** angeordnet. Das ist eine **unterbrochene Entwicklung, keine endgültige Produktabnahme**. Projekt: `D:/imp-projekte/Pi-Dashboard` (nicht der vertippte Pfad `pi-dahsboard`). Git: Branch `main`, vor jedem Push `origin` auf `https://github.com/Imperativ/pi-agent-observatory-project.git` prüfen. Projektname im Prompt-Dokument: `Pi-agent-observatory-project-prompt.md`. Der Magos möchte jeden abgeschlossenen, geprüften Projektpunkt committen **und vor dem nächsten Punkt pushen**. Keine fremden Verzeichnisse oder Pi-Logs scannen.
 
-Projekt: `D:\imp-projekte\Pi-Dashboard`. Künftiger Projektname laut letzter Benutzeranweisung: **Pi-agent-observatory-project**. Bestehende interne Paket-/UI-Bezeichnungen sind noch nicht durchgehend darauf umgestellt; bei Wiederaufnahme prüfen.
-Git origin wurde geprüft: `https://github.com/Imperativ/pi-agent-observatory-project.git`, Branch `main`.
-Die bereits vor Arbeitsbeginn bestehende Umbenennung von `agent-observatory-project-prompt.md` zu `Pi-agent-observatory-project-prompt.md` wird auf ausdrücklichen Benutzerwunsch einschließlich des vorhandenen Dokumentinhalts in diesen Commit aufgenommen. Der neue Dokumentname bleibt verbindlich.
+## Aktueller Implementierungsstand
 
-## Gespeichert
+- Offline-v1: versioniertes Sample/Schema, Contract-Normalisierung, Freshness aus `observedAt` statt Abrufzeit, Herkunftsangaben, Redaktion und evidenzgebundene Checkzustände.
+- Loopback-HTTP-Server mit expliziter Routen-Allowlist, Origin/Host/CSP-Grenzen, redigiertem Status und Sample-Fallback nur bei **fehlender** Live-Datei.
+- Store mit Polling, Timeout, Erhalt des letzten gültigen Snapshots und generischen Fehlern für fremde `fetchFn`-Exceptions. Der vorher vermutete Leak `Status token=DEMO_SECRET` wurde an der Store-Grenze behoben und getestet.
+- HTML/CSS/JS-Oberfläche mit neun Bereichen, zentralem Status, Herkunft, Quell-/Abrufzeit, Listen/Filtern/Details, Fehlerhinweis, Hell/Dunkel und zurückhaltendem ROH_58-Design. Lokal automatisiert getestet, **nicht** vollständig manuell abgenommen.
+- `README.md` erklärt Start, Schema, Datenschutz, atomare Statusupdates und absichtliche Offline-v1-Grenze. `VERIFICATION.md` hält die tatsächlich ausgeführten Prüfungen und ihre Grenzen fest.
 
-- `CONTRACT.md`: vereinbarter Statusvertrag, Modul-APIs, Dateizuständigkeiten und Abnahmebedingungen.
-- `src/contract.mjs`: Normalisierung, Herkunft, Freshness/Laufzeit, Redaktion, begrenzte Datenmengen und evidenzgebundene Prüfstatus.
-- `src/store.mjs`: Abruf mit Timeout, Fehlererholung und letztem gültigem Snapshot.
-- `server.mjs`: nur lokaler, nur lesender Server mit Routen-Allowlist, Host/Origin-Schutz, CSP und sanitisiertem Statusendpunkt.
-- Versionierte Beispieldaten, generiertes JSON-Schema, zentrale Zeitkonfiguration.
-- Node/npm-Skripte für Start, Syntax-/Sicherheits-Guard, Statusinitialisierung und -validierung, Schema und HTTP-Smoke.
-- `test/server.test.mjs`: vier Integrationstests; `test/contract.test.mjs`: 58 zusätzliche Vertragstests.
-- `index.html`, `app.mjs` und `src/render.mjs`: Teilstand der Oberfläche; noch nicht integriert/abgenommen. Renderer besitzt Übersicht, Messwerte, Herkunft und Aktualität, jedoch nur Gerüste für Aktivität, Artefakte/Prüfungen und Probleme.
-- Entwicklungsabhängigkeiten: `playwright-core`, `axe-core`, `ajv`; Laufzeit selbst benötigt keine npm-Abhängigkeiten.
+## Bestätigte Prüfungen (auf gespeichertem Dateistand erneut ausgeführt)
 
-## Tatsächlich ausgeführte Prüfungen
+`npm run check`: 15 JS-Dateien syntaxgeprüft, DOM-Senken-Guard/Beispiel/Konfiguration gültig. `npm test`: **69 bestanden, 0 fehlgeschlagen** (58 Vertrag, 4 Server, 7 Store). `npm run schema:check`: erfolgreich. `npm run status:validate`: Beispiel `schemaVersion=1.0`, `dataset=sample`. `npm run smoke`: dokumentierter Serverstart über `npm start -- --port 0`, acht Routen 200 und private/Schreib-/fremde Origin blockiert. `npm run test:browser`: lokaler Chrome/Playwright mit neun Bereichen, Filter, Tastatur-Details, Theme, Polling, Fehlererholung, Aktualität, inertem Injection-Text, Redaktion, axe WCAG A/AA und 390px-Breite erfolgreich. `npm audit --offline`: 0 bekannte Schwachstellen **in lokalen Audit-Daten**, kein Online-Nachweis. `git diff --check`: ohne Befund. Details in `VERIFICATION.md`.
 
-Nach Wiederaufnahme geprüft: Windows x64, Node `v25.8.1`, npm `11.12.1`; Entwicklungsabhängigkeiten mit `npm ls --depth=0` vorhanden.
+Bereits in getrennten, gepushten Zwischenständen: `d2e35fb` (Store-Grenze/Store-Tests) und `933706c` (Browser-Prüfskript). Die übrigen UI-/Dokumentationsdateien in diesem Handoff-Checkpoint committen/pushen und anschließend mit `git status --short --branch` sowie `git log -1` verifizieren. **Nie automatisch annehmen, dass ein gerade gestarteter Agent fertig ist**; vor Commit seine tatsächlichen Dateien und letzte Prüfung nochmals prüfen.
 
-| Befehl | Tatsächliches Ergebnis |
-| --- | --- |
-| `node --check src/contract.mjs` | erfolgreich |
-| `node --check src/store.mjs` | erfolgreich |
-| `node --check server.mjs` | erfolgreich |
-| `npm run status:validate` | Beispiel gültig, Version 1.0, dataset sample |
-| `node --test test/server.test.mjs` | 4 bestanden, 0 fehlgeschlagen |
-| `npm run schema:check` | Ajv strict kompiliert Schema; Beispiel, Minimalquelle, Negativfälle und Schema-Drift geprüft, erfolgreich |
-| `npm run check` | Nach letztem Agenten-Handoff: 13 JS-Dateien syntaxgeprüft; DOM-Senken-Guard, Beispiel, Schema-JSON und Konfiguration erfolgreich |
-| `npm test` | Nach letztem Agenten-Handoff: 62 bestanden, 0 fehlgeschlagen; 58 Vertrags- und 4 Servertests |
+## Offen vor einer endgültigen Abnahme
 
-Die vier Servertests belegen HTTP-Statusaktualisierung ohne Neustart, Fehler bei beschädigtem/nicht unterstütztem Live-Status ohne stillen Beispiel-Fallback, Routen-/Host-/Origin-/Methodenschutz, Redaktion vor Übertragung, Größenlimit und Konfigurationsgrenzen. Die Vertragstests prüfen u. a. fehlende Daten, Normalisierung, Zeitfälle, Provenienz, Fortschrittsbasis, Check-Evidenz, Redaktion und Grenzen. Das ist **keine vollständige Prüfung aller Anforderungen**: Store-Verhalten und reale DOM-/Browserdarstellung sind noch nicht getestet.
+1. Unabhängigen Read-only-Review von Datenschutz, Rendering, Aktualität und fehlenden Werten abschließen; jeden Fund selbst anhand Code/Test bestätigen, nötigenfalls minimal korrigieren und Checks wiederholen.
+2. Manuelle visuelle Abnahme auf Laptop/Mobilgerät: Fokusreihenfolge/-sichtbarkeit, Screenreader-Bezeichnungen, Hell-/Dunkel-Kontrast, reduzierter Bewegungsmodus, Informationshierarchie vor Scrollen. Browserautomation/axe ersetzen diese Schritte nicht. Ggf. Browserchecks für weitere Modi/Browser ergänzen.
+3. Bei jeder Änderung `npm run check && npm test && npm run schema:check && npm run smoke && npm run test:browser` erneut ausführen; Testbelege in `VERIFICATION.md` aktualisieren. Optional Online-Audit mit Netzfreigabe; Offline-Audit ist begrenzt.
+4. Optional einen echten **minimierten, ignorierten** `agent-status.json`-Snapshot nur aus tatsächlich erlaubten Quellen erstellen. Kein Modell-/Token-/Kosten-/Rechtewert raten. Derzeit ist das öffentliche Sample absichtlich fiktiv.
+5. Optional (nicht für v1 erforderlich) Online-Anreicherungen/Badges/Credential-Adapter/Pi-Automatismen nur nach neuer Scope-Prüfung. Keine Cloud, Telemetrie, Fernsteuerung oder Multi-Agent-Verwaltung in v1.
 
-Vor dem Absturz meldete `npm install --save-dev playwright-core axe-core ajv` 0 bekannte Vulnerabilities. Eine abschließende Sicherheitsprüfung ist noch ausstehend.
+## Wiederaufnahme
 
-## Offen / nächste Arbeit
-
-1. Gespeicherten Dateistand erneut inspizieren. Beide nach dem Absturz neu gestarteten Subagenten haben das Beenden bestätigt. Ihre gespeicherten Änderungen wurden gelesen und die vorhandenen Tests zentral ausgeführt.
-2. Oberfläche fertigstellen: `styles.css` fehlt; `src/render.mjs` ist unvollständig. Aktivität/Filter, Artefakte/Prüfungen und Problemdetails ergänzen. `index.html`/`app.mjs` gegen den Vertrag und Server integrieren. Alle neun Bereiche, Herkunft, Fehlererholung, Hell/Dunkel, Tastatur und zurückhaltendes ROH_58-Design abnehmen.
-3. `test/store.test.mjs` schreiben und ausführen; vorhandene Vertragstests weiterverwenden. Store-Timeout, Parallelabrufe, Stop, Fehlererholung und Snapshot-Erhalt prüfen. **Offener, noch nicht ausgeführter Sicherheitsverdacht:** Wenn ein benutzerdefiniertes `fetchFn` mit `new Error('Status token=DEMO_SECRET')` fehlschlägt, könnte `src/store.mjs` diesen fremden Fehlertext wegen seines Präfixes ungefiltert in `state.error` übernehmen. Renderer redigiert Fehlertexte zusätzlich; trotzdem an der Store-Grenze reproduzieren und korrigieren. Keine ungeprüfte Behebung im Pause-Commit.
-4. `README.md` und abschließendes `VERIFICATION.md` erstellen. Atomare Statusaktualisierung, Quellenminimierung, Konfigurationsgrenzen und ehrliche unbekannte Werte dokumentieren.
-5. `scripts/browser-check.mjs` fehlt; `npm run test:browser` ist bereits als zukünftiger Aufruf eingetragen, aber **noch nicht ausführbar**. Installiertes Chrome/Edge wurde vor dem Absturz gefunden; Verfügbarkeit bei Fortsetzung erneut prüfen. Browserchecks einschließlich Injection, Tastatur/Fokus, Layout, Modi und axe-Audit implementieren/ausführen.
-6. `npm run smoke` erst nach vollständiger Oberfläche ausführen. Dieses Skript wurde noch nicht validiert; aktuell fehlen dafür nötige UI-Dateien. Die Anwendung ist noch nicht als nutzbar bestätigt.
-7. Unabhängige Read-only-Prüfung von Datenschutz, Rendering, Freshness, Missing Data; Befunde selbst mit Code/Tests bestätigen. Anschließend sämtliche relevanten Prüfungen erneut ausführen und Ergebnisse dokumentieren.
-8. Optional einen echten, minimierten `agent-status.json`-Snapshot erstellen (gitignoriert). Derzeit gibt es nur klar markierte Beispieldaten. Keine Token-/Kosten-/Rechtewerte erfinden. PI_MODEL/PI_PROVIDER wurden als gemeldete Umgebungswerte entdeckt, nicht als unabhängig attestierte Modellidentität.
-9. Nach Wiederaufnahme nächste sinnvolle, geprüfte Stände gemäß Benutzerwunsch committen. Der Push dieses Pause-Zwischenstands ist ausdrücklich autorisiert; künftige Pushes nicht automatisch daraus ableiten.
-
-## Scope bleibt unverändert
-
-Offline-v1 zuerst. Online-Anreicherungen, Badges, Credential-Adapter und automatische Pi-Integration sind nicht implementiert und für einen Folgeumfang zurückgestellt. Keine Pi-Logs oder fremden Verzeichnisse scannen. Keine Fernsteuerung, Telemetrie, Cloud-Datenbank oder Multi-Agent-Flottenverwaltung. Es bestehen keine blockierenden Produktfragen für den beschriebenen Offline-v1.
+Im Projektordner `git status --short --branch`, `git remote get-url origin`, `git log -3 --oneline` und `HANDOFF.md`/`VERIFICATION.md` lesen. Sicherstellen, dass der letzte Checkpoint wirklich gepusht ist. Offene Prüfungen erledigen; jeden **geprüften** Projektpunkt separat committen und nach Remote-Check pushen. Den aktuellen Stand nicht als fertige Live-Agenten-Integration missverstehen.

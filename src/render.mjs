@@ -14,6 +14,18 @@ const VERIFICATION = {
   verified: ['Verifiziert laut Quelle', 'success'], self_reported: ['Selbstauskunft', 'info'],
   unverified: ['Ungeprüft', 'warning'], unavailable: ['Nicht verfügbar', 'neutral'],
 };
+const ACTIVITY_STATES = {
+  info: ['Information', 'info'], running: ['Läuft', 'info'], passed: ['Erfolg gemeldet', 'success'],
+  failed: ['Fehlgeschlagen', 'danger'], warning: ['Warnung', 'warning'], unknown: ['Unbekannt', 'neutral'],
+};
+const CHECK_LABELS = {
+  not_run: ['Nicht ausgeführt', 'neutral'], running: ['Läuft', 'info'], passed: ['Bestanden (Nachweis vorhanden)', 'success'],
+  failed: ['Fehlgeschlagen', 'danger'], unknown: ['Unbekannt / nicht belegt', 'warning'],
+};
+const CHANGES = {created: 'Erstellt', modified: 'Geändert', unchanged: 'Unverändert', unknown: 'Unbekannt'};
+const SEVERITIES = {
+  info: ['Hinweis', 'info'], warning: ['Warnung', 'warning'], blocker: ['Blocker', 'danger'], error: ['Fehler', 'danger'],
+};
 const SECTIONS = [
   ['identity', 'Identität', 'Agent, Modell und Sitzung'],
   ['assignment', 'Auftrag', 'Ziel, Arbeitsschritt und belastbarer Fortschritt'],
@@ -223,6 +235,179 @@ function createView(root) {
   sections.assignment.append(assignmentUpdated);
   sections.usage.append(el('p', 'section-note', 'Ohne verlässliche Quelle bleiben Werte nicht verfügbar oder ungeprüft. Kosten verwenden ausschließlich die in der Quelle genannte Einheit.'));
 
+  function collection(card, label) {
+    const availability = el('p', 'collection-status');
+    const list = el('ol', 'entry-list');
+    list.setAttribute('aria-label', label);
+    card.append(availability, list);
+    return {availability, list};
+  }
+  function updateAvailability(node, available, count, noun) {
+    text(node, !available ? `${noun}: Datenquelle enthält keine Liste. Nicht verfügbar; keine Entwarnung.`
+      : count === 0 ? `${noun}: Explizit leere Liste; keine Einträge gemeldet.`
+        : `${noun}: ${count} ${count === 1 ? 'Eintrag' : 'Einträge'} gemeldet.`);
+    tone(node, available ? 'neutral' : 'warning');
+  }
+  function fieldLine(parent, label, value) {
+    parent.append(el('p', 'entry-meta', `${label}: ${value ?? 'Nicht verfügbar'}`));
+  }
+  function evidence(parent, item, observedAt = item.observedAt) {
+    const detail = el('div', 'entry-evidence');
+    const verification = el('span', 'verification');
+    badge(verification, VERIFICATION[item.verification] || VERIFICATION.unavailable);
+    detail.append(verification);
+    fieldLine(detail, 'Quelle', item.source || 'Nicht verfügbar');
+    fieldLine(detail, 'Beobachtet', date(observedAt));
+    parent.append(detail);
+  }
+  const activity = collection(sections.activity, 'Aktivitätsereignisse');
+  const controls = el('div', 'filters');
+  function filterControl(id, label) {
+    const wrapper = el('label', 'filter-label', label);
+    const select = el('select');
+    select.id = id;
+    wrapper.append(select);
+    controls.append(wrapper);
+    return select;
+  }
+  const categoryFilter = filterControl('activity-category', 'Kategorie');
+  const statusFilter = filterControl('activity-status', 'Status');
+  function option(value, label) {
+    const node = el('option', '', label);
+    node.value = value;
+    return node;
+  }
+  categoryFilter.append(option('', 'Alle Kategorien'));
+  statusFilter.append(option('', 'Alle Status'));
+  for (const [key, pair] of Object.entries(ACTIVITY_STATES)) statusFilter.append(option(key, pair[0]));
+  const resultCount = el('p', 'filter-count');
+  resultCount.setAttribute('aria-live', 'polite');
+  sections.activity.insertBefore(controls, activity.availability);
+  sections.activity.insertBefore(resultCount, activity.list);
+  const artifacts = collection(sections.artifacts, 'Artefakte');
+  const checks = collection(sections.artifacts, 'Prüfungen');
+  const artifactTitle = el('h3', 'subsection-title', 'Datei-Artefakte');
+  const checkTitle = el('h3', 'subsection-title', 'Prüfungen');
+  sections.artifacts.insertBefore(artifactTitle, artifacts.availability);
+  sections.artifacts.insertBefore(checkTitle, checks.availability);
+  const issues = collection(sections.issues, 'Probleme und nächste Schritte');
+
+  let renderedCollection = null;
+  const openActivityKeys = new Set();
+  function renderActivity(s) {
+    const source = s?.activity || [];
+    const filtered = source.filter(item => (!categoryFilter.value || item.category === categoryFilter.value)
+      && (!statusFilter.value || item.status === statusFilter.value));
+    text(resultCount, s?.availability?.activity === true ? `${filtered.length} von ${source.length} Ereignissen sichtbar.` : 'Keine filterbaren Ereignisse verfügbar.');
+    updateAvailability(activity.availability, s?.availability?.activity === true, source.length, 'Aktivität');
+    for (const node of activity.list.querySelectorAll('details[open]')) openActivityKeys.add(node.dataset.entryKey);
+    const active = doc.activeElement;
+    const focusedKey = activity.list.contains(active) ? active.closest('details')?.dataset.entryKey : null;
+    const ordered = source.map((item, index) => ({item, key: `${item.id}:${item.time}:${index}`}))
+      .sort((a, b) => Date.parse(b.item.time) - Date.parse(a.item.time));
+    const currentKeys = new Set(ordered.map(entry => entry.key));
+    for (const key of openActivityKeys) if (!currentKeys.has(key)) openActivityKeys.delete(key);
+    const fragment = doc.createDocumentFragment();
+    for (const {item, key} of ordered) {
+      if (!filtered.includes(item)) continue;
+      const li = el('li', 'entry');
+      const detail = el('details', 'activity-detail');
+      detail.dataset.entryKey = key;
+      detail.open = openActivityKeys.has(key);
+      detail.addEventListener('toggle', () => {
+        if (detail.open) openActivityKeys.add(key);
+        else openActivityKeys.delete(key);
+      });
+      const summary = el('summary', 'entry-heading');
+      const time = el('time', 'entry-time', date(item.time));
+      time.dateTime = item.time;
+      summary.append(time, el('span', 'entry-category', item.category));
+      const state = el('span', 'badge');
+      badge(state, ACTIVITY_STATES[item.status] || ACTIVITY_STATES.unknown);
+      summary.append(state, el('span', 'entry-summary', item.summary));
+      const body = el('div', 'entry-body');
+      fieldLine(body, 'Dauer', item.durationMs === null ? 'Nicht verfügbar' : `${NUMBERS.format(item.durationMs)} ms`);
+      evidence(body, item, item.time);
+      detail.append(summary, body);
+      li.append(detail);
+      fragment.append(li);
+    }
+    activity.list.replaceChildren(fragment);
+    if (focusedKey) {
+      const replacement = [...activity.list.querySelectorAll('details')].find(node => node.dataset.entryKey === focusedKey);
+      if (replacement) replacement.querySelector('summary')?.focus({preventScroll: true});
+      else categoryFilter.focus({preventScroll: true});
+    }
+  }
+  function renderArtifacts(s) {
+    updateAvailability(artifacts.availability, s?.availability?.artifacts === true, s?.artifacts?.length || 0, 'Artefakte');
+    const fragment = doc.createDocumentFragment();
+    for (const item of s?.artifacts || []) {
+      const li = el('li', 'entry');
+      const main = el('div', 'entry-heading');
+      main.append(el('span', 'entry-summary path', item.path));
+      const change = el('span', 'badge');
+      badge(change, [CHANGES[item.change] || CHANGES.unknown, item.change === 'unknown' ? 'warning' : 'neutral']);
+      main.append(change);
+      li.append(main);
+      evidence(li, item);
+      fragment.append(li);
+    }
+    artifacts.list.replaceChildren(fragment);
+    updateAvailability(checks.availability, s?.availability?.checks === true, s?.checks?.length || 0, 'Prüfungen');
+    const checkFragment = doc.createDocumentFragment();
+    for (const item of s?.checks || []) {
+      const li = el('li', 'entry');
+      const main = el('div', 'entry-heading');
+      main.append(el('span', 'entry-summary', item.name));
+      const status = el('span', 'badge');
+      badge(status, CHECK_LABELS[item.status] || CHECK_LABELS.unknown);
+      main.append(status);
+      li.append(main);
+      if (item.evidence) {
+        const proof = el('div', 'entry-evidence');
+        fieldLine(proof, 'Befehl', item.evidence.command);
+        fieldLine(proof, 'Exit-Code', item.evidence.exitCode);
+        fieldLine(proof, 'Abgeschlossen', date(item.evidence.finishedAt));
+        fieldLine(proof, 'Nachweisquelle', item.evidence.source);
+        li.append(proof);
+      } else fieldLine(li, 'Ausführungsnachweis', 'Nicht verfügbar');
+      checkFragment.append(li);
+    }
+    checks.list.replaceChildren(checkFragment);
+  }
+  function renderIssues(s) {
+    updateAvailability(issues.availability, s?.availability?.issues === true, s?.issues?.length || 0, 'Probleme');
+    const fragment = doc.createDocumentFragment();
+    for (const item of s?.issues || []) {
+      const li = el('li', 'entry');
+      const main = el('div', 'entry-heading');
+      const severity = el('span', 'badge');
+      badge(severity, SEVERITIES[item.severity] || SEVERITIES.warning);
+      main.append(severity, el('span', 'entry-summary', item.summary));
+      li.append(main);
+      fieldLine(li, 'Nächster Schritt', item.nextAction || 'Nicht verfügbar');
+      evidence(li, item);
+      fragment.append(li);
+    }
+    issues.list.replaceChildren(fragment);
+  }
+  function refreshCollections(s) {
+    if (renderedCollection === s) return;
+    renderedCollection = s;
+    const categories = [...new Set((s?.activity || []).map(item => item.category))].sort((a, b) => a.localeCompare(b, 'de'));
+    const selected = categoryFilter.value;
+    categoryFilter.replaceChildren(option('', 'Alle Kategorien'), ...categories.map(value => option(value, value)));
+    // Keep an active choice even when a later snapshot no longer has this category.
+    if (selected && !categories.includes(selected)) categoryFilter.append(option(selected, `${selected} (derzeit keine Einträge)`));
+    categoryFilter.value = selected;
+    renderActivity(s);
+    renderArtifacts(s);
+    renderIssues(s);
+  }
+  categoryFilter.addEventListener('change', () => renderActivity(snapshot));
+  statusFilter.addEventListener('change', () => renderActivity(snapshot));
+
   const validation = el('details', 'validation-notice');
   const validationSummary = el('summary');
   const validationList = el('ul');
@@ -244,6 +429,7 @@ function createView(root) {
         snapshot = state.snapshot ? redact(state.snapshot) : null;
       }
       const s = snapshot;
+      refreshCollections(s);
       for (const [section, sectionFields] of Object.entries(fields)) {
         for (const [field, row] of Object.entries(sectionFields)) row.update(s?.[section]?.[field]);
       }

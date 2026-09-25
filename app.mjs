@@ -1,17 +1,19 @@
 import { createStore } from './src/store.mjs';
 import { renderDashboard } from './src/render.mjs';
 
-const CONFIG_FIELDS = ['pollIntervalMs', 'staleAfterMs', 'clockSkewMs', 'timeoutMs'];
+const CONFIG_RANGES = {
+  pollIntervalMs: [500, 60000], staleAfterMs: [1000, 86400000],
+  clockSkewMs: [0, 60000], timeoutMs: [100, 60000],
+};
 
 function validateConfig(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error('Die Konfiguration muss ein JSON-Objekt sein.');
   }
   const result = {};
-  for (const key of CONFIG_FIELDS) {
+  for (const [key, [minimum, maximum]] of Object.entries(CONFIG_RANGES)) {
     const number = value[key];
-    const minimum = key === 'clockSkewMs' ? 0 : 1;
-    if (typeof number !== 'number' || !Number.isFinite(number) || number < minimum || number > 2_147_483_647) {
+    if (!Number.isInteger(number) || number < minimum || number > maximum) {
       throw new Error(`Konfigurationsfeld ${key} fehlt oder ist ungültig.`);
     }
     result[key] = number;
@@ -109,9 +111,12 @@ export function startDashboard(documentRef = document, windowRef = window) {
       schedulePoll();
     } catch (error) {
       if (!stopped) {
+        // Network adapters can throw arbitrary messages; never echo them into the page.
         const reason = error?.name === 'AbortError'
           ? 'Zeitüberschreitung beim Konfigurationsabruf (5 Sekunden).'
-          : error instanceof Error ? error.message : 'Der Konfigurationsabruf ist fehlgeschlagen.';
+          : error instanceof Error && (/^Konfigurationsfeld (?:pollIntervalMs|staleAfterMs|clockSkewMs|timeoutMs) fehlt oder ist ungültig\.$/.test(error.message)
+            || ['Die Konfiguration muss ein JSON-Objekt sein.', 'Die Konfiguration überschreitet die zulässige Größe.', 'Die Konfiguration enthält kein gültiges JSON.'].includes(error.message))
+            ? error.message : 'Konfigurationsabruf fehlgeschlagen oder ungültig.';
         configNotice.className = 'notice error';
         configNotice.textContent = `Konfiguration nicht verfügbar. ${reason} Es werden keine ungeprüften Standardwerte verwendet. Lokalen Server und config.json prüfen; mit „Neu laden“ erneut versuchen.`;
         configNotice.hidden = false;
