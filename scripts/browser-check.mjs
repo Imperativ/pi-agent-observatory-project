@@ -1,0 +1,116 @@
+import assert from 'node:assert/strict';
+import {access, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises';
+import {once} from 'node:events';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {chromium} from 'playwright-core';
+import axe from 'axe-core';
+import {createServer} from '../server.mjs';
+
+const root = fileURLToPath(new URL('../', import.meta.url));
+const candidates = [process.env.BROWSER_PATH,
+  'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+  'C:/Program Files/Microsoft/Edge/Application/msedge.exe',
+  '/usr/bin/chromium', '/usr/bin/google-chrome', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].filter(Boolean);
+let browserPath;
+for (const candidate of candidates) {
+  try { await access(candidate); browserPath = candidate; break; } catch { /* Try the next installed browser. */ }
+}
+if (!browserPath) throw new Error('Kein lokaler Chrome/Edge/Chromium gefunden. BROWSER_PATH setzen; Browsertest nicht ausgeführt.');
+
+const directory = await mkdtemp(path.join(root, '.test-tmp-browser-'));
+const statusPath = path.join(directory, 'status.json');
+const configPath = path.join(directory, 'config.json');
+const sample = JSON.parse(await readFile(path.join(root, 'agent-status.example.json'), 'utf8'));
+sample.observedAt = new Date().toISOString();
+await writeFile(statusPath, JSON.stringify(sample));
+await writeFile(configPath, JSON.stringify({pollIntervalMs: 500, staleAfterMs: 2000, clockSkewMs: 5000, timeoutMs: 2000}));
+const server = createServer({statusPath, configPath});
+let browser;
+try {
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const base = `http://127.0.0.1:${server.address().port}`;
+  browser = await chromium.launch({executablePath: browserPath, headless: true});
+  const page = await browser.newPage({viewport: {width: 1366, height: 768}});
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  assert.equal((await page.goto(base + '/'))?.status(), 200);
+  await page.locator('#dashboard').getByText(/Agent|Auftrag|Status/i).first().waitFor();
+  await page.waitForFunction(() => document.querySelector('#dashboard')?.textContent?.length > 350);
+  assert.match(await page.locator('#dashboard').innerText(), /Muster|Beispiel|sample/i);
+  assert.equal(await page.locator('#dashboard section.card').count(), 9, 'Alle neun Bereiche müssen existieren.');
+  await page.locator('#activity-status').selectOption('warning');
+  assert.match(await page.locator('#activity .filter-count').innerText(), /1 von 2/);
+  await page.locator('#activity-status').selectOption('');
+  await page.locator('#activity-category').selectOption('information');
+  assert.match(await page.locator('#activity .filter-count').innerText(), /1 von 2/);
+  await page.locator('#activity-category').selectOption('');
+  const firstDetail = page.locator('#activity details.activity-detail').first();
+  await firstDetail.locator('summary').focus();
+  await firstDetail.locator('summary').press('Enter');
+  assert.notEqual(await firstDetail.getAttribute('open'), null, 'Aktivitätsdetails per Tastatur öffnen.');
+  console.log('Browser: neun Bereiche, Aktivitätsfilter und Tastatur-Details geprüft.');
+
+  await page.keyboard.press('Tab');
+  assert.notEqual(await page.evaluate(() => document.activeElement?.tagName), 'BODY', 'Tastaturfokus muss sichtbar navigierbar sein.');
+  const theme = page.locator('#theme-toggle');
+  const oldBg = await page.locator('body').evaluate(node => getComputedStyle(node).backgroundColor);
+  await theme.click();
+  const newBg = await page.locator('body').evaluate(node => getComputedStyle(node).backgroundColor);
+  assert.notEqual(oldBg, newBg, 'Hell/Dunkel muss die Darstellung sichtbar ändern.');
+  await theme.click();
+  console.log('Browser: Tastaturstart und Hell/Dunkel geprüft.');
+
+  const updated = structuredClone(sample);
+  updated.observedAt = new Date().toISOString();
+  updated.assignment.goal = {value: 'AGENT_PROBE_AKTUALISIERT', source: 'browser-test', observedAt: updated.observedAt, verification: 'self_reported'};
+  await writeFile(statusPath, JSON.stringify(updated));
+  await page.getByText('AGENT_PROBE_AKTUALISIERT').first().waitFor({timeout: 8000});
+  assert.match(await page.locator('#dashboard').innerText(), /AGENT_PROBE_AKTUALISIERT/);
+  assert.notEqual(await page.locator('#activity details.activity-detail').first().getAttribute('open'), null, 'Geöffnete Details bleiben nach Polling erhalten.');
+  console.log('Browser: Statusänderung ohne Neubau, Detailzustand erhalten.');
+
+  const injected = structuredClone(updated);
+  injected.observedAt = new Date().toISOString();
+  injected.assignment.goal.value = '<img src=x onerror="window.__injected=true"> AGENT_PROBE_TEXT';
+  injected.assignment.step = {value: 'token=DEMO_SECRET', source: 'browser-test', observedAt: injected.observedAt, verification: 'self_reported'};
+  await writeFile(statusPath, JSON.stringify(injected));
+  await page.getByText(/AGENT_PROBE_TEXT/).first().waitFor({timeout: 8000});
+  assert.equal(await page.locator('#dashboard img').count(), 0, 'Fremdtext darf kein HTML erzeugen.');
+  assert.equal(await page.evaluate(() => window.__injected === true), false, 'Fremdtext darf nicht ausführbar sein.');
+  assert.equal((await page.locator('#dashboard').innerText()).includes('DEMO_SECRET'), false, 'Secrets dürfen nicht angezeigt werden.');
+  console.log('Browser: HTML-Injektion inert, Secret-Wert redigiert.');
+
+  await writeFile(statusPath, '{bad json');
+  await page.waitForFunction(() => document.querySelector('#dashboard')?.textContent?.includes('AGENT_PROBE_TEXT') && /fehler|ungültig|nicht lesbar/i.test(document.querySelector('#dashboard')?.textContent || ''), null, {timeout: 8000});
+  assert.match(await page.locator('#dashboard').innerText(), /AGENT_PROBE_TEXT/, 'Letzter gültiger Snapshot muss nach Fehler erhalten bleiben.');
+  console.log('Browser: beschädigte Live-Quelle zeigt Fehler und letzten Snapshot.');
+
+  const stale = structuredClone(updated);
+  stale.observedAt = '2020-01-01T00:00:00Z';
+  stale.assignment.goal.value = 'AGENT_PROBE_ALT';
+  await writeFile(statusPath, JSON.stringify(stale));
+  await page.getByText('AGENT_PROBE_ALT').first().waitFor({timeout: 8000});
+  assert.match(await page.locator('#dashboard').innerText(), /veraltet/i);
+  const unknown = structuredClone(updated);
+  unknown.observedAt = null;
+  unknown.assignment.goal.value = 'AGENT_PROBE_OHNE_ZEIT';
+  await writeFile(statusPath, JSON.stringify(unknown));
+  await page.getByText('AGENT_PROBE_OHNE_ZEIT').first().waitFor({timeout: 8000});
+  assert.match(await page.locator('#dashboard').innerText(), /unbekannt|ungültig/i);
+  console.log('Browser: alte und fehlende Quellzeit markiert.');
+
+  await page.evaluate(axe.source);
+  const report = await page.evaluate(() => window.axe.run(document, {runOnly: {type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']}}));
+  assert.deepEqual(report.violations.map(v => `${v.id}: ${v.nodes.map(n => n.target.join(' ')).join(', ')}`), [], 'axe WCAG-Verstöße');
+  await page.setViewportSize({width: 390, height: 844});
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, 'Mobilansicht darf nicht horizontal überlaufen.');
+  assert.deepEqual(errors, [], 'Keine ungefangenen Browserfehler.');
+  console.log('Browser: axe WCAG A/AA, Mobilbreite, keine Page-Errors.');
+} finally {
+  await browser?.close();
+  await new Promise(resolve => { server.close(resolve); server.closeAllConnections(); });
+  await rm(directory, {recursive: true, force: true});
+}
