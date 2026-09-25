@@ -17,7 +17,7 @@ Der Magos hat wegen eines nahenden Sitzungs-/Zeitlimits einen **sinnvollen Zwisc
 
 `npm run check`: 15 JS-Dateien syntaxgeprüft, DOM-Senken-Guard/Beispiel/Konfiguration gültig. `npm test`: **69 bestanden, 0 fehlgeschlagen** (58 Vertrag, 4 Server, 7 Store). `npm run schema:check`: erfolgreich. `npm run status:validate`: Beispiel `schemaVersion=1.0`, `dataset=sample`. `npm run smoke`: dokumentierter Serverstart über `npm start -- --port 0`, acht Routen 200 und private/Schreib-/fremde Origin blockiert. `npm run test:browser`: lokaler Chrome/Playwright mit neun Bereichen, Filter, Tastatur-Details, Theme, Polling, Fehlererholung, Aktualität einschließlich ungültiger Kalenderzeit, inertem Injection-Text, CLI-Secret-Redaktion im HTTP-Status und DOM, axe WCAG A/AA und 390px-Breite erfolgreich. `npm audit --offline`: 0 bekannte Schwachstellen **in lokalen Audit-Daten**, kein Online-Nachweis. `git diff --check`: ohne Befund. Details in `VERIFICATION.md`.
 
-Bereits gepushte Zwischenstände: `d2e35fb` (Store-Grenze/Store-Tests), `933706c` (Browser-Prüfskript), `f81f4d2` (UI/Dokumentation). Die Review-Korrekturen in einem weiteren geprüften Sicherheits-Checkpoint committen/pushen und danach `git status --short --branch` sowie `git log -1` verifizieren.
+Bereits gepushte Zwischenstände: `d2e35fb` (Store-Grenze/Store-Tests), `933706c` (Browser-Prüfskript), `f81f4d2` (UI/Dokumentation) und `2b94257` (Review-Korrekturen). Nach dem Sicherheits-Checkpoint: `git status --short --branch` war sauber und synchron mit `origin/main`.
 
 ## Offen vor einer endgültigen Abnahme
 
