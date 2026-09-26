@@ -74,9 +74,12 @@ Es gibt nur **einen** Live-Writer je Dashboard-Statusdatei. Er hält `agent-stat
 - **ChatGPT-Quotas (5-Stunden- und wöchentliches Limit):** Wenn OpenAI als Provider aktiv ist oder Quotas übergeben wurden, zeigt das Dashboard zwei grafische Fortschrittsbalken mit verbleibenden Prozentwerten und Reset-Zeitangaben (sowohl in der Übersicht als auch in Bereich 06 „Kontext & Verbrauch“).
 - **Warum keine automatische Online-Abfrage von `chatgpt.com/settings/usage?tab=overview`?**
   OpenAI stellt die persönlichen Kontoquotas aus den ChatGPT-Web-Einstellungen **nicht** über eine offene Programmierschnittstelle bereit. Die Seite liegt hinter Cloudflare-Bot-Schutz und erfordert eine aktive Browser-Web-Sitzung (`__Secure-next-auth.session-token`). Der Dashboard-Server ist zudem strikt offline ausgelegt und sendet keine Netzwerkanfragen ins Internet.
-- **Quotas bequem einspeisen:**
-  1. *Direkt in Pi:* In der mit der Extension gestarteten Pi-Sitzung `/limits <5h-%> <Woche-%> [Reset-Zeit]` eingeben, z.B. `/limits 85 60 "18:00 UTC"`. Die Extension aktualisiert die Statusdatei sofort. Zurücksetzen mit `/limits reset`.
-  2. *Über die Kommandozeile:* Ohne laufende Extension `npm run status:limits -- --5h 85 --weekly 60 --reset-5h "18:00 UTC"` ausführen.
+- **Quotas bequem einspeisen & Browser-Sync:**
+  1. *Headless Browser-Sync (Playwright + Chromium):*
+     - Einmalig anmelden: `npm run quota:login [openai|google]` (öffnet sichtbares Browserfenster; nach Login mit Enter bestätigen).
+     - Automatisch synchronisieren: `npm run quota:sync` oder in Pi direkt `/limits sync`. Liest Prozentwerte und Reset-Zeiten direkt aus `https://chatgpt.com/settings/usage` bzw. `https://gemini.google.com/usage` aus.
+  2. *Direkt in Pi manuell:* In der mit der Extension gestarteten Pi-Sitzung `/limits <5h-%> <Woche-%> [Reset-Zeit]` eingeben, z.B. `/limits 85 60 "18:00 UTC"`. Zurücksetzen mit `/limits reset`.
+  3. *Über die Kommandozeile manuell:* Ohne laufende Extension `npm run status:limits -- --5h 85 --weekly 60 --reset-5h "18:00 UTC"` ausführen.
 
 ## Optionaler lokaler Pi-JSONL-Export (minimal)
 

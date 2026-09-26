@@ -188,7 +188,7 @@ function createView(root) {
   const identity = el('span', 'overview-agent');
   title.append(identity);
   const modelPill = el('div', 'overview-model-pill');
-  const modelPillLabel = el('span', 'model-pill-label', 'Modell');
+  const modelPillLabel = el('span', 'model-pill-label', 'Provider & Modell');
   const modelPillVal = el('span', 'model-pill-val');
   modelPill.append(modelPillLabel, modelPillVal);
   titleBlock.append(title, modelPill);
@@ -197,7 +197,7 @@ function createView(root) {
 
   const summary = el('div', 'summary-grid');
   const modelBox = el('div', 'summary-cell model-cell');
-  modelBox.append(el('span', 'eyebrow', 'Aktives Modell & Anbieter'));
+  modelBox.append(el('span', 'eyebrow', 'Aktiver Provider & Modell'));
   const modelHead = el('p', 'model-value');
   const modelSub = el('p', 'summary-note');
   const modelLink = el('a', 'quiet-link', 'Modell & Identität →');
@@ -462,9 +462,9 @@ function createView(root) {
   categoryFilter.addEventListener('change', () => renderActivity(snapshot));
   statusFilter.addEventListener('change', () => renderActivity(snapshot));
 
-  function renderQuotaOverview(container, limits) {
+  function renderQuotaOverview(container, limits, isGoogle = false) {
     const head = el('div', 'overview-quota-head');
-    const titleNode = el('span', 'overview-quota-title', 'ChatGPT / Provider Account-Limits');
+    const titleNode = el('span', 'overview-quota-title', isGoogle ? 'Google / Gemini Kontolimits' : 'ChatGPT / Provider Account-Limits');
     const link = el('a', 'quiet-link', 'Verbrauch & Details →');
     link.href = '#usage';
     head.append(titleNode, link);
@@ -495,20 +495,28 @@ function createView(root) {
       grid.append(box);
     };
 
-    addLimit('5-Stunden-Limit (ChatGPT-Nachrichten)', limits.fiveHour);
-    addLimit('Wöchentliches Limit (Reasoning)', limits.weekly);
+    if (isGoogle) {
+      addLimit('Kurzzeit-Limit / Anfragen (Gemini)', limits.fiveHour || limits.shortTerm);
+      addLimit('Wöchentliches / Tages-Limit (Gemini Thinking)', limits.weekly || limits.daily);
+    } else {
+      addLimit('5-Stunden-Limit (ChatGPT-Nachrichten)', limits.fiveHour);
+      addLimit('Wöchentliches Limit (Reasoning / o-Serie)', limits.weekly);
+    }
+    if (limits.detail) grid.append(el('p', 'section-note', limits.detail));
 
     container.replaceChildren(head, grid);
   }
 
-  function renderOpenAINotice(container) {
+  function renderQuotaNotice(container, isGoogle = false) {
     const head = el('div', 'overview-quota-head');
-    const titleNode = el('span', 'overview-quota-title', 'ChatGPT-Kontoquotas (5h / Wöchentlich)');
+    const titleNode = el('span', 'overview-quota-title', isGoogle ? 'Google / Gemini Kontolimits' : 'ChatGPT-Kontoquotas (5h / Wöchentlich)');
     const link = el('a', 'quiet-link', 'Verbrauch & Details →');
     link.href = '#usage';
     head.append(titleNode, link);
 
-    const note = el('p', 'section-note', 'Nicht verfügbar · OpenAI stellt Kontolimits von https://chatgpt.com/settings/usage?tab=overview nicht über eine offene API bereit. Quotas können über /limits in Pi oder ein Status-Update übergeben werden.');
+    const note = el('p', 'section-note', isGoogle
+      ? 'Nicht synchronisiert · Google stellt Kontolimits von https://gemini.google.com/usage nicht über eine offene API bereit. Quotas können über Browser-Sync ("npm run quota:sync") oder /limits in Pi übergeben werden.'
+      : 'Nicht verfügbar · OpenAI stellt Kontolimits von https://chatgpt.com/settings/usage?tab=overview nicht über eine offene API bereit. Quotas können über Browser-Sync ("npm run quota:sync") oder /limits in Pi übergeben werden.');
     note.style.margin = '0';
     container.replaceChildren(head, note);
   }
@@ -554,23 +562,32 @@ function createView(root) {
       text(identity, valueOf(s?.identity?.name) ? ` / ${s.identity.name.value}` : ' / Identität nicht verfügbar');
 
       const providerVal = valueOf(s?.identity?.provider);
-      const modelVal = valueOf(s?.identity?.model);
-      const hasModel = Boolean(providerVal || modelVal);
-      const modelDisplay = hasModel ? [providerVal, modelVal].filter(Boolean).join(' · ') : 'Nicht gemeldet';
+      const exactModelVal = valueOf(s?.identity?.modelVersion);
+      const familyModelVal = valueOf(s?.identity?.model);
+      const effectiveModel = exactModelVal || familyModelVal;
+      const effectiveProvider = providerVal || 'Nicht gemeldet';
+
+      const modelDisplay = providerVal && effectiveModel
+        ? `${providerVal} · ${effectiveModel}`
+        : (effectiveModel || effectiveProvider);
       text(modelHead, modelDisplay);
-      text(modelSub, hasModel ? (s?.identity?.model?.source || s?.identity?.provider?.source || 'Gemeldete Modellquelle') : 'Modellinformationen nicht verfügbar');
+      const modelSourceText = s?.identity?.modelVersion?.source || s?.identity?.model?.source || s?.identity?.provider?.source || 'Gemeldete Modellquelle';
+      text(modelSub, (providerVal || effectiveModel) ? modelSourceText : 'Modellinformationen nicht verfügbar');
       text(modelPillVal, modelDisplay);
 
       const rateLimitVal = valueOf(s?.usage?.rateLimits);
-      const isOpenAI = providerVal === 'OpenAI' || (typeof modelVal === 'string' && (modelVal.includes('GPT') || modelVal.includes('OpenAI')));
+      const isGoogle = (typeof providerVal === 'string' && /google|gemini/i.test(providerVal))
+        || (typeof effectiveModel === 'string' && /gemini/i.test(effectiveModel));
+      const isOpenAI = (typeof providerVal === 'string' && /openai|chatgpt/i.test(providerVal))
+        || (typeof effectiveModel === 'string' && /(?:gpt|o1|o3|o4|openai)/i.test(effectiveModel));
       const isStructuredLimits = isObject(rateLimitVal) && (rateLimitVal.fiveHour || rateLimitVal.weekly);
 
       if (isStructuredLimits) {
         quotaOverview.hidden = false;
-        renderQuotaOverview(quotaOverview, rateLimitVal);
-      } else if (isOpenAI) {
+        renderQuotaOverview(quotaOverview, rateLimitVal, isGoogle);
+      } else if (isOpenAI || isGoogle) {
         quotaOverview.hidden = false;
-        renderOpenAINotice(quotaOverview);
+        renderQuotaNotice(quotaOverview, isGoogle);
       } else {
         quotaOverview.hidden = true;
         quotaOverview.replaceChildren();
