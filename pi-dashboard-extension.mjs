@@ -1,4 +1,8 @@
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {createLiveWriter} from './scripts/live-pi-writer.mjs';
+
+const PROJECT_DIR = fileURLToPath(new URL('./', import.meta.url));
 
 /** Opt-in, read-only Pi lifecycle bridge. Load explicitly with `pi --extension <this file>`. */
 export function createLiveExtension(pi, createWriter = createLiveWriter) {
@@ -31,20 +35,51 @@ export function createLiveExtension(pi, createWriter = createLiveWriter) {
 
   if (typeof pi.registerCommand === 'function') {
     pi.registerCommand('limits', {
-      description: 'ChatGPT Plus/Pro Quotas setzen: /limits <5h-%> <Woche-%> [Reset-Zeit]',
+      description: 'ChatGPT / Gemini Quotas setzen: /limits <5h-%> <Woche-%> [Reset-Zeit] oder /limits sync',
       handler: async (args, ctx) => {
         const parts = args.trim().split(/\s+/).filter(Boolean);
         if (!parts.length) {
           const msg = currentLimits
             ? `Aktuelle Quotas: 5h ${currentLimits.fiveHour?.remainingPercent ?? '-'} %, Woche ${currentLimits.weekly?.remainingPercent ?? '-'} %`
-            : 'Keine ChatGPT-Quotas gesetzt. Verwendung: /limits <5h-Prozent> <Woche-Prozent> [Reset-Zeit] (z.B. /limits 80 65 "17:30 UTC")';
+            : 'Keine Quotas gesetzt. Verwendung: /limits <5h-Prozent> <Woche-Prozent> [Reset-Zeit] oder /limits sync';
           if (ctx.hasUI) ctx.ui.notify(msg, 'info');
+          return;
+        }
+        if (parts[0] === 'sync') {
+          if (ctx.hasUI) ctx.ui.notify('Browser-Quota-Sync wird gestartet …', 'info');
+          if (typeof pi.exec !== 'function') {
+            if (ctx.hasUI) ctx.ui.notify('pi.exec nicht verfügbar. Führe "npm run quota:sync" im Terminal aus.', 'warning');
+            return;
+          }
+          try {
+            const providerArg = ctx.model?.provider && /google|gemini/i.test(ctx.model.provider) ? 'google' : 'openai';
+            const scriptPath = path.join(PROJECT_DIR, 'scripts/browser-quota-sync.mjs');
+            const res = await pi.exec('node', [scriptPath, 'sync', providerArg, '--json'], { timeout: 35000 });
+            if (res.code === 0 && res.stdout) {
+              try {
+                const parsed = JSON.parse(res.stdout);
+                if (parsed.success && parsed.limits) {
+                  currentLimits = parsed.limits;
+                  await publish(ctx);
+                  if (ctx.hasUI) ctx.ui.notify(`Quotas synchronisiert: 5h ${currentLimits.fiveHour?.remainingPercent ?? '-'} %, Woche ${currentLimits.weekly?.remainingPercent ?? '-'} %.`, 'info');
+                  return;
+                }
+              } catch {}
+            }
+            if (res.stderr?.includes('LOGIN_REQUIRED') || res.stdout?.includes('LOGIN_REQUIRED')) {
+              if (ctx.hasUI) ctx.ui.notify('Browser-Login erforderlich. Bitte im Terminal "npm run quota:login" ausführen.', 'warning');
+            } else {
+              if (ctx.hasUI) ctx.ui.notify(`Quota-Sync: ${res.stderr || res.stdout || 'Keine Antwort'}`, 'error');
+            }
+          } catch (err) {
+            if (ctx.hasUI) ctx.ui.notify(`Quota-Sync Fehler: ${err.message}`, 'error');
+          }
           return;
         }
         if (parts[0] === 'reset' || parts[0] === 'clear') {
           currentLimits = null;
           await publish(ctx);
-          if (ctx.hasUI) ctx.ui.notify('ChatGPT-Quotas zurückgesetzt.', 'info');
+          if (ctx.hasUI) ctx.ui.notify('Quotas zurückgesetzt.', 'info');
           return;
         }
         const p5h = Number(parts[0].replace('%', ''));
@@ -58,7 +93,7 @@ export function createLiveExtension(pi, createWriter = createLiveWriter) {
         currentLimits = {
           fiveHour: {remainingPercent: p5h, resetsAt: resetText},
           weekly: pWeekly !== null ? {remainingPercent: pWeekly, resetsAt: null} : null,
-          detail: 'ChatGPT Plus/Pro Quota (via /limits in Pi)',
+          detail: 'Quota-Vorgabe (via /limits in Pi)',
         };
         await publish(ctx);
         if (ctx.hasUI) ctx.ui.notify(`Quotas aktualisiert: 5h ${p5h} %, Woche ${pWeekly ?? '-'} %.`, 'info');

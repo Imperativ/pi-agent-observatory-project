@@ -18,7 +18,9 @@
     "status:init": "node scripts/init-status.mjs",
     "status:limits": "node scripts/update-limits.mjs",
     "status:pi": "node scripts/generate-pi-status.mjs",
-    "status:validate": "node scripts/validate-status.mjs"
+    "status:validate": "node scripts/validate-status.mjs",
+    "quota:login": "node scripts/browser-quota-sync.mjs login",
+    "quota:sync": "node scripts/browser-quota-sync.mjs sync"
   },
   "devDependencies": {
     "ajv": "^8.20.0",

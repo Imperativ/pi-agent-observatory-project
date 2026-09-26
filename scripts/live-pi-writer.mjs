@@ -11,7 +11,7 @@ const PROVIDERS = Object.freeze({
   openai: 'OpenAI',
   'openai-codex': 'OpenAI Codex',
   google: 'Google',
-  'google-antigravity': 'Google',
+  'google-antigravity': 'Google Antigravity',
   xai: 'xAI',
   mistral: 'Mistral',
   openrouter: 'OpenRouter',
@@ -25,6 +25,14 @@ function modelFamily(id) {
   if (/gemini/i.test(id)) return 'Gemini (Modellfamilie)';
   if (/\b(?:o1|o3|o4)\b/i.test(id) || /^o[1-9]/i.test(id)) return 'OpenAI o-Serie (Modellfamilie)';
   if (/llama/i.test(id)) return 'Llama (Modellfamilie)';
+  return null;
+}
+function cleanModelId(id) {
+  if (typeof id !== 'string') return null;
+  const trimmed = id.trim();
+  if (/^[a-zA-Z0-9_.:/-]{1,100}$/.test(trimmed) && !/bearer|secret|token|password|private|sk-/i.test(trimmed)) {
+    return trimmed;
+  }
   return null;
 }
 const metric = (value, source, observedAt, verification = 'self_reported') => ({value, source, observedAt, verification});
@@ -44,7 +52,13 @@ export function createLiveSnapshot({now = new Date(), state = 'idle', ended = fa
     snapshot.identity.provider = metric(Object.hasOwn(PROVIDERS, model.provider) ? PROVIDERS[model.provider] : 'Anderer Anbieter', 'Pi · ausgewähltes Modell', observedAt);
   }
   const family = modelFamily(model?.id);
-  if (family) snapshot.identity.model = metric(family, 'Pi · erkannte Modellfamilie (keine exakte Modell-ID)', observedAt);
+  if (family) {
+    snapshot.identity.model = metric(family, 'Pi · erkannte Modellfamilie (keine exakte Modell-ID)', observedAt);
+  }
+  const exactModel = cleanModelId(model?.id);
+  if (exactModel) {
+    snapshot.identity.modelVersion = metric(exactModel, 'Pi · gemeldete Modell-ID', observedAt);
+  }
   if (Array.isArray(tools)) snapshot.capabilities = {tools: metric([...new Set(tools.filter(name => TOOLS.has(name)))], 'Pi · bekannte aktivierte Werkzeuge (kein vollständiges Inventar)', observedAt)};
   const window = context?.contextWindow ?? model?.contextWindow;
   if (Number.isFinite(window) && window > 0) {

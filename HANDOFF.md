@@ -18,8 +18,8 @@ Der Magos hat die Erstellung eines aktualisierten Handoffs und die Sicherung auf
 
 ## Bestätigte Prüfungen (in der aktuellen Sitzung re-validiert)
 
-- `npm run check`: Syntax-Check von 21 JS-Dateien erfolgreich.
-- `npm test`: **81 von 81 Tests bestanden** (Contract-, Quota-, Live-/Exporter-, Server- und Store-Suite).
+- `npm run check`: Syntax-Check von 23 JS-Dateien erfolgreich.
+- `npm test`: **87 von 87 Tests bestanden** (Contract-, Quota-, Browser-Quota-Sync-, Live-/Exporter-, Server- und Store-Suite).
 - `npm run schema:check`: Ajv-Schema-Kompilierung und Negativtest-Suite erfolgreich.
 - `npm run status:validate`: Sample-JSON ist schema-konform.
 - `npm run smoke`: Standard-Loopback-Serverstart über `npm start -- --port 0` mit Allowlist- & Routing-Regeln verifiziert; LAN-Host/Origin separat mit simulierten HTTP-Anfragen geprüft, keine Abnahme über ein zweites Gerät.
