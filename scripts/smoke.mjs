@@ -24,7 +24,7 @@ try {
     });
   });
   clearTimeout(timer);
-  for (const route of ['/', '/styles.css', '/app.mjs', '/src/render.mjs', '/src/contract.mjs', '/src/store.mjs', '/src/export.mjs', '/status.json', '/config.json']) {
+  for (const route of ['/', '/styles.css', '/app.mjs', '/src/render.mjs', '/src/contract.mjs', '/src/store.mjs', '/status.json', '/config.json']) {
     const response = await fetch(url + route);
     assert.equal(response.status, 200, `${route}: ${await response.text()}`);
     assert.match(response.headers.get('content-security-policy'), /default-src 'none'/);

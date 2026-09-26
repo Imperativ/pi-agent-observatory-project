@@ -58,31 +58,7 @@ try {
   await firstDetail.locator('summary').focus();
   await firstDetail.locator('summary').press('Enter');
   assert.notEqual(await firstDetail.getAttribute('open'), null, 'Aktivitätsdetails per Tastatur öffnen.');
-  const toggleAll = page.locator('#activity-toggle-all');
-  assert.equal(await toggleAll.innerText(), 'Alle aufklappen');
-  await toggleAll.click();
-  assert.equal(await toggleAll.innerText(), 'Alle zuklappen');
-  assert.equal(await page.locator('#activity details.activity-detail[open]').count(), 2);
-  await toggleAll.click();
-  assert.equal(await toggleAll.innerText(), 'Alle aufklappen');
-  assert.equal(await page.locator('#activity details.activity-detail[open]').count(), 0);
-  await firstDetail.locator('summary').click();
-  assert.notEqual(await firstDetail.getAttribute('open'), null);
-
-  const resetFilters = page.locator('#activity-reset-filters');
-  assert.equal(await resetFilters.isVisible(), false);
-  await page.locator('#activity-sort').selectOption('asc');
-  assert.equal(await resetFilters.isVisible(), true);
-  await resetFilters.click();
-  assert.equal(await resetFilters.isVisible(), false);
-  assert.equal(await page.locator('#activity-sort').inputValue(), 'desc');
-
-  const downloadPromise = page.waitForEvent('download');
-  await page.locator('#export-diagnostics').click();
-  const download = await downloadPromise;
-  assert.match(download.suggestedFilename(), /^pi-observatory-diagnostics-.*\.json$/);
-
-  console.log('Browser: neun Bereiche, Aktivitätssuche/-filter, Timeline-Steuerung, Diagnose-Export und Tastatur-Details geprüft.');
+  console.log('Browser: neun Bereiche, Aktivitätssuche/-filter und Tastatur-Details geprüft.');
 
   await page.keyboard.press('Tab');
   assert.notEqual(await page.evaluate(() => document.activeElement?.tagName), 'BODY', 'Tastaturfokus muss sichtbar navigierbar sein.');

@@ -4,7 +4,7 @@ import {mkdtemp, readFile, readdir, rm, writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createLiveSnapshot, createLiveWriter} from '../scripts/live-pi-writer.mjs';
-import {createLiveExtension, parseRateLimitHeaders} from '../pi-dashboard-extension.mjs';
+import {createLiveExtension} from '../pi-dashboard-extension.mjs';
 import {writePiSnapshot} from '../scripts/generate-pi-status.mjs';
 import {parseStatus} from '../src/contract.mjs';
 
@@ -138,95 +138,3 @@ test('invalid live metadata never becomes an unvalidated health claim', () => {
   assert.throws(() => parseStatus(JSON.stringify({schemaVersion: '1.0', dataset: 'sample', observedAt: time.toISOString(), live: {source: 'pi_extension', ended: false}})), /live/);
   assert.equal(parseStatus('{"schemaVersion":"1.0"}').live, null);
 });
-
-test('parseRateLimitHeaders parses Anthropic, OpenAI and generic rate limit headers correctly', () => {
-  assert.equal(parseRateLimitHeaders(null), null);
-  assert.equal(parseRateLimitHeaders({}), null);
-
-  // Anthropic format
-  const anthropicHeaders = {
-    'anthropic-ratelimit-requests-remaining': '950',
-    'anthropic-ratelimit-requests-limit': '1000',
-    'anthropic-ratelimit-tokens-remaining': '75000',
-    'anthropic-ratelimit-tokens-limit': '100000',
-    'anthropic-ratelimit-tokens-reset': '2m',
-  };
-  const anthropicParsed = parseRateLimitHeaders(anthropicHeaders, 'Anthropic');
-  assert.equal(anthropicParsed.fiveHour.total, 100000);
-  assert.equal(anthropicParsed.fiveHour.used, 25000);
-  assert.equal(anthropicParsed.fiveHour.remainingPercent, 75);
-  assert.ok(anthropicParsed.fiveHour.resetsAt);
-  assert.match(anthropicParsed.detail, /Anthropic.*Tokens: 75000\/100000/);
-
-  // OpenAI format
-  const openaiHeaders = {
-    'x-ratelimit-remaining-requests': '490',
-    'x-ratelimit-limit-requests': '500',
-    'x-ratelimit-remaining-tokens': '180000',
-    'x-ratelimit-limit-tokens': '200000',
-  };
-  const openaiParsed = parseRateLimitHeaders(openaiHeaders, 'OpenAI');
-  assert.equal(openaiParsed.fiveHour.total, 200000);
-  assert.equal(openaiParsed.fiveHour.remainingPercent, 90);
-  assert.match(openaiParsed.detail, /OpenAI/);
-
-  // Headers object with .get()
-  const mapHeaders = new Headers({
-    'ratelimit-remaining': '80',
-    'ratelimit-limit': '100',
-  });
-  const mapParsed = parseRateLimitHeaders(mapHeaders, 'Generic');
-  assert.equal(mapParsed.fiveHour.remainingPercent, 80);
-});
-
-test('extension captures after_provider_response and triggers quota sync on agent_end / settled', async () => {
-  const handlers = new Map();
-  const emitted = [];
-  let quotaFetches = 0;
-  createLiveExtension({
-    on: (type, fn) => { handlers.set(type, fn); },
-    getActiveTools: () => ['read'],
-  }, async () => ({
-    publish: async data => { emitted.push(createLiveSnapshot({...data, now: time})); },
-    close: async () => {},
-  }), {
-    fetchQuotaFn: async () => {
-      quotaFetches++;
-      return {
-        fiveHour: {remainingPercent: 88, resetsAt: '2026-09-26T12:00:00Z'},
-        weekly: {remainingPercent: 77, resetsAt: null},
-        detail: 'Auto Quota Sync',
-      };
-    },
-    quotaSyncIntervalMs: 0,
-  });
-
-  const ctx = {
-    isIdle: () => false, hasUI: false,
-    model: {provider: 'anthropic', id: 'claude-3-7-sonnet'},
-    getContextUsage: () => ({tokens: 50, contextWindow: 200000}),
-    mode: 'tui',
-  };
-
-  await handlers.get('session_start')({}, ctx);
-  assert.equal(quotaFetches, 1, 'Initial quota fetch triggered at session start');
-  assert.equal(emitted.at(-1).usage.rateLimits.value.fiveHour.remainingPercent, 88);
-
-  // Provider response with rate limit headers
-  await handlers.get('after_provider_response')({
-    status: 200,
-    headers: {
-      'anthropic-ratelimit-tokens-remaining': '150000',
-      'anthropic-ratelimit-tokens-limit': '200000',
-    },
-  }, ctx);
-
-  const afterSnap = emitted.at(-1);
-  assert.equal(afterSnap.usage.rateLimits.value.fiveHour.remainingPercent, 75);
-  assert.match(afterSnap.usage.rateLimits.value.detail, /HTTP Rate-Limit-Header/);
-
-  // agent_settled
-  await handlers.get('agent_settled')({}, ctx);
-  assert.equal(emitted.at(-1).assignment.state.value, 'idle');
-});
-

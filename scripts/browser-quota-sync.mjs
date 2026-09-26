@@ -3,29 +3,10 @@ import { constants as fsConstants } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import readline from 'node:readline';
-import { promisify } from 'node:util';
-import { execFile as execFileCb } from 'node:child_process';
 import { chromium } from 'playwright-core';
 import { parseStatus } from '../src/contract.mjs';
 
-const execFile = promisify(execFileCb);
 const root = fileURLToPath(new URL('../', import.meta.url));
-
-export const GOOGLE_OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token';
-export const GOOGLE_MODELS_QUOTA_URL = 'https://cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels';
-export const OPENAI_USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage';
-
-export function getGoogleOAuthCredentials() {
-  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-    return { clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET };
-  }
-  const idParts = ['1071006060591', '-tmhssin2h21lcre235vtolojh4g403ep', '.apps.googleusercontent.com'];
-  const secParts = ['GO', 'CSP', 'X-K58F', 'WR486Ld', 'LJ1mLB8', 'sXC4z6qDAf'];
-  return {
-    clientId: idParts.join(''),
-    clientSecret: secParts.join(''),
-  };
-}
 
 export async function findBrowserExecutable() {
   const candidates = [
@@ -219,310 +200,6 @@ export function parseGoogleUsageText(text, apiData = null) {
   };
 }
 
-export function getPiAuthPath() {
-  if (process.env.PI_AUTH_PATH) return process.env.PI_AUTH_PATH;
-  const home = process.env.HOME || process.env.USERPROFILE || '.';
-  return path.join(home, '.pi', 'agent', 'auth.json');
-}
-
-export async function readPiAuth(customPath = null) {
-  const filePath = customPath || getPiAuthPath();
-  try {
-    const content = await readFile(filePath, 'utf8');
-    return JSON.parse(content);
-  } catch {
-    return null;
-  }
-}
-
-export function parseDirectOpenAIQuota(data) {
-  if (!data || typeof data !== 'object') return null;
-
-  const rateLimit = data.rate_limit || {};
-  const primary = rateLimit.primary_window;
-  const secondary = rateLimit.secondary_window;
-
-  let fiveHour = null;
-  if (primary && typeof primary.used_percent === 'number') {
-    const remaining = Math.max(0, Math.min(100, Math.round(100 - primary.used_percent)));
-    let resetsAt = null;
-    if (typeof primary.reset_at === 'number' && Number.isFinite(primary.reset_at)) {
-      resetsAt = new Date(primary.reset_at * 1000).toISOString();
-    } else if (typeof primary.reset_after_seconds === 'number' && Number.isFinite(primary.reset_after_seconds)) {
-      resetsAt = new Date(Date.now() + primary.reset_after_seconds * 1000).toISOString();
-    }
-    fiveHour = {
-      used: null,
-      total: null,
-      remainingPercent: remaining,
-      resetsAt,
-    };
-  }
-
-  let weekly = null;
-  if (secondary && typeof secondary.used_percent === 'number') {
-    const remaining = Math.max(0, Math.min(100, Math.round(100 - secondary.used_percent)));
-    let resetsAt = null;
-    if (typeof secondary.reset_at === 'number' && Number.isFinite(secondary.reset_at)) {
-      resetsAt = new Date(secondary.reset_at * 1000).toISOString();
-    } else if (typeof secondary.reset_after_seconds === 'number' && Number.isFinite(secondary.reset_after_seconds)) {
-      resetsAt = new Date(Date.now() + secondary.reset_after_seconds * 1000).toISOString();
-    }
-    weekly = {
-      used: null,
-      total: null,
-      remainingPercent: remaining,
-      resetsAt,
-    };
-  }
-
-  if (!fiveHour && !weekly) return null;
-
-  const plan = data.plan_type ? `${String(data.plan_type).toUpperCase()} ` : '';
-  const credits = data.rate_limit_reset_credits?.available_count;
-  const creditNote = typeof credits === 'number' && credits > 0 ? ` · ${credits} Resets verfügbar` : '';
-
-  return {
-    fiveHour,
-    weekly,
-    detail: `ChatGPT ${plan}Quota (Direkte API${creditNote})`,
-  };
-}
-
-export function parseDirectGoogleQuota(data) {
-  if (!data || typeof data !== 'object') return null;
-
-  const models = data.models;
-  if (!models || typeof models !== 'object') return null;
-
-  let minGeminiFraction = null;
-  let geminiResetTime = null;
-  let minClaudeFraction = null;
-  let claudeResetTime = null;
-
-  for (const [name, info] of Object.entries(models)) {
-    const quota = info?.quotaInfo;
-    if (!quota || typeof quota.remainingFraction !== 'number') continue;
-
-    const fraction = quota.remainingFraction;
-    const resetTime = quota.resetTime || null;
-
-    if (/gemini/i.test(name)) {
-      if (minGeminiFraction === null || fraction < minGeminiFraction) {
-        minGeminiFraction = fraction;
-        geminiResetTime = resetTime;
-      }
-    } else if (/claude/i.test(name)) {
-      if (minClaudeFraction === null || fraction < minClaudeFraction) {
-        minClaudeFraction = fraction;
-        claudeResetTime = resetTime;
-      }
-    }
-  }
-
-  if (minGeminiFraction === null && minClaudeFraction === null) {
-    for (const info of Object.values(models)) {
-      const quota = info?.quotaInfo;
-      if (quota && typeof quota.remainingFraction === 'number') {
-        minGeminiFraction = quota.remainingFraction;
-        geminiResetTime = quota.resetTime || null;
-        break;
-      }
-    }
-  }
-
-  let fiveHour = null;
-  if (minGeminiFraction !== null) {
-    fiveHour = {
-      used: null,
-      total: null,
-      remainingPercent: Math.max(0, Math.min(100, Math.round(minGeminiFraction * 100))),
-      resetsAt: geminiResetTime,
-    };
-  }
-
-  let weekly = null;
-  if (minClaudeFraction !== null) {
-    weekly = {
-      used: null,
-      total: null,
-      remainingPercent: Math.max(0, Math.min(100, Math.round(minClaudeFraction * 100))),
-      resetsAt: claudeResetTime,
-    };
-  }
-
-  if (!fiveHour && !weekly) return null;
-
-  return {
-    fiveHour,
-    weekly,
-    detail: 'Google Gemini / Cloud Quota (Direkte API)',
-  };
-}
-
-export async function fetchDirectOpenAIQuota(options = {}) {
-  const auth = await readPiAuth(options.authPath);
-  const codexAuth = auth?.['openai-codex'] || auth?.['openai'];
-
-  let accessToken = codexAuth?.access;
-  const accountId = codexAuth?.accountId;
-
-  const isExpired = !codexAuth?.expires || codexAuth.expires < Date.now() + 60000;
-  if (!accessToken || isExpired) {
-    try {
-      const { stdout } = await execFile('pi', ['auth', 'print-bearer-token', '--provider', 'openai-codex'], {
-        timeout: options.timeoutMs || 10000,
-        signal: options.signal,
-      });
-      if (stdout && stdout.trim()) {
-        accessToken = stdout.trim();
-      }
-    } catch (err) {
-      if (!accessToken) {
-        throw new Error(`OpenAI OAuth nicht verfügbar (${err.message})`);
-      }
-    }
-  }
-
-  if (!accessToken) {
-    throw new Error('Kein OpenAI Bearer-Token in ~/.pi/agent/auth.json gefunden.');
-  }
-
-  const headers = {
-    Authorization: `Bearer ${accessToken}`,
-    Accept: 'application/json',
-    'User-Agent': 'pi-multi-pass',
-  };
-  if (accountId) {
-    headers['chatgpt-account-id'] = accountId;
-  }
-
-  const res = await (options.fetchFn || fetch)(OPENAI_USAGE_URL, {
-    method: 'GET',
-    headers,
-    signal: options.signal,
-  });
-
-  if (!res.ok) {
-    const errorText = await res.text().catch(() => '');
-    throw new Error(`OpenAI API Quota HTTP ${res.status}: ${errorText.slice(0, 100)}`);
-  }
-
-  const data = await res.json();
-  const limits = parseDirectOpenAIQuota(data);
-  if (!limits) {
-    throw new Error('OpenAI Quota-Antwort enthielt keine Fenster-Daten.');
-  }
-  return limits;
-}
-
-export async function fetchDirectGoogleQuota(options = {}) {
-  const auth = await readPiAuth(options.authPath);
-  const googleAuth = auth?.['google-antigravity-2'] || auth?.['google-gemini-cli'];
-
-  if (!googleAuth) {
-    throw new Error('Keine Google-Anmeldedaten in ~/.pi/agent/auth.json gefunden.');
-  }
-
-  let accessToken = googleAuth.access;
-  const projectId = googleAuth.projectId;
-  const refreshToken = googleAuth.refresh;
-
-  const isExpired = !googleAuth.expires || googleAuth.expires < Date.now() + 60000;
-  if ((!accessToken || isExpired) && refreshToken) {
-    try {
-      const creds = getGoogleOAuthCredentials();
-      const refreshRes = await (options.fetchFn || fetch)(GOOGLE_OAUTH_TOKEN_URL, {
-        method: 'POST',
-        headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          grant_type: 'refresh_token',
-          refresh_token: refreshToken,
-          client_id: creds.clientId,
-          client_secret: creds.clientSecret,
-        }).toString(),
-        signal: options.signal,
-      });
-      if (refreshRes.ok) {
-        const tokenData = await refreshRes.json();
-        if (tokenData.access_token) {
-          accessToken = tokenData.access_token;
-          googleAuth.access = tokenData.access_token;
-          googleAuth.expires = Date.now() + (tokenData.expires_in || 3600) * 1000;
-          try {
-            const filePath = options.authPath || getPiAuthPath();
-            await writeFile(filePath, JSON.stringify(auth, null, 2), 'utf8');
-          } catch {}
-        }
-      }
-    } catch {}
-  }
-
-  if (!accessToken) {
-    throw new Error('Kein Google Access-Token verfügbar.');
-  }
-
-  const res = await (options.fetchFn || fetch)(GOOGLE_MODELS_QUOTA_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      'User-Agent': 'antigravity/1.107.0 linux/x64',
-    },
-    body: JSON.stringify(projectId ? { project: projectId } : {}),
-    signal: options.signal,
-  });
-
-  if (!res.ok) {
-    const errorText = await res.text().catch(() => '');
-    throw new Error(`Google API Quota HTTP ${res.status}: ${errorText.slice(0, 100)}`);
-  }
-
-  const data = await res.json();
-  const limits = parseDirectGoogleQuota(data);
-  if (!limits) {
-    throw new Error('Google Quota-Antwort enthielt keine Modell-Kontingente.');
-  }
-  return limits;
-}
-
-export async function fetchDirectQuota(provider = 'auto', options = {}) {
-  let targetProvider = provider;
-  if (targetProvider === 'auto') {
-    try {
-      const statusText = await readFile(options.statusPath || path.join(root, 'agent-status.json'), 'utf8');
-      const parsed = JSON.parse(statusText);
-      const p = parsed?.identity?.provider?.value || '';
-      if (/google|gemini/i.test(p)) targetProvider = 'google';
-      else if (/openai|chatgpt/i.test(p)) targetProvider = 'openai';
-    } catch {}
-  }
-
-  if (targetProvider === 'google') {
-    return await fetchDirectGoogleQuota(options);
-  }
-  if (targetProvider === 'openai') {
-    return await fetchDirectOpenAIQuota(options);
-  }
-
-  const auth = await readPiAuth(options.authPath);
-  if (auth?.['openai-codex']) {
-    try {
-      return await fetchDirectOpenAIQuota(options);
-    } catch (e) {
-      if (auth?.['google-antigravity-2'] || auth?.['google-gemini-cli']) {
-        return await fetchDirectGoogleQuota(options);
-      }
-      throw e;
-    }
-  } else if (auth?.['google-antigravity-2'] || auth?.['google-gemini-cli']) {
-    return await fetchDirectGoogleQuota(options);
-  }
-
-  throw new Error('Kein unterstützter Provider in auth.json für direkten Quota-Abruf konfiguriert.');
-}
-
 export async function scrapeOpenAI(page) {
   let capturedApiQuota = null;
 
@@ -617,18 +294,15 @@ export async function saveRateLimitsToStatus(limits, targetPath) {
     existing = JSON.parse(text);
   } catch (error) {
     if (error.code === 'ENOENT') {
-      const isGoogle = limits.detail?.includes('Google') || limits.detail?.includes('Gemini');
       existing = {
         schemaVersion: '1.0',
         dataset: 'live',
         observedAt: new Date().toISOString(),
         identity: {
-          name: { value: isGoogle ? 'Google Quota Monitor' : 'ChatGPT Quota Monitor', source: 'quota-sync', observedAt: new Date().toISOString(), verification: 'self_reported' },
-          provider: { value: isGoogle ? 'Google' : 'OpenAI', source: 'quota-sync', observedAt: new Date().toISOString(), verification: 'self_reported' },
-          model: { value: isGoogle ? 'Gemini (Modellfamilie)' : 'ChatGPT (Modellfamilie)', source: 'quota-sync', observedAt: new Date().toISOString(), verification: 'self_reported' },
+          name: { value: 'Browser Quota Monitor', source: 'browser-quota-sync', observedAt: new Date().toISOString(), verification: 'self_reported' },
         },
         assignment: {
-          state: { value: 'idle', source: 'quota-sync', observedAt: new Date().toISOString(), verification: 'self_reported' },
+          state: { value: 'idle', source: 'browser-quota-sync', observedAt: new Date().toISOString(), verification: 'self_reported' },
         },
         usage: {},
       };
@@ -733,46 +407,24 @@ export async function runLogin(provider = 'openai') {
 }
 
 export async function runSync(provider = 'auto', options = {}) {
-  let activeProvider = provider;
-  if (activeProvider === 'auto') {
-    try {
-      const statusText = await readFile(options.statusPath || path.join(root, 'agent-status.json'), 'utf8');
-      const parsed = JSON.parse(statusText);
-      const p = parsed?.identity?.provider?.value || '';
-      if (/google|gemini/i.test(p)) activeProvider = 'google';
-      else if (/openai|chatgpt/i.test(p)) activeProvider = 'openai';
-    } catch {
-      activeProvider = 'openai';
-    }
-  }
-
-  // 1. Direct API fetch first (unless disabled via direct: false)
-  if (options.direct !== false) {
-    try {
-      const directLimits = await fetchDirectQuota(activeProvider, options);
-      if (directLimits) {
-        if (options.write !== false) {
-          const statusPath = options.statusPath || path.join(root, 'agent-status.json');
-          await saveRateLimitsToStatus(directLimits, statusPath);
-        }
-        return directLimits;
-      }
-    } catch (err) {
-      if (options.directOnly) {
-        throw err;
-      }
-      if (!options.quiet && !options.isJson) {
-        console.warn(`[quota-sync] Direkter API-Abruf nicht möglich (${err.message}); wechsle zu Browser-Fallback.`);
-      }
-    }
-  }
-
-  // 2. Browser fallback
   const executablePath = await findBrowserExecutable();
   if (!executablePath) throw new Error('Kein lokaler Chrome/Chromium Browser gefunden.');
 
   const profileDir = getProfileDir();
   const headless = options.headless !== false;
+
+  let activeProvider = provider;
+  if (activeProvider === 'auto') {
+    try {
+      const statusText = await readFile(path.join(root, 'agent-status.json'), 'utf8');
+      const parsed = JSON.parse(statusText);
+      const p = parsed?.identity?.provider?.value || '';
+      if (/google|gemini/i.test(p)) activeProvider = 'google';
+      else activeProvider = 'openai';
+    } catch {
+      activeProvider = 'openai';
+    }
+  }
 
   const context = await chromium.launchPersistentContext(profileDir, {
     executablePath,
@@ -810,8 +462,6 @@ if (process.argv[1] && process.argv[1].endsWith('browser-quota-sync.mjs')) {
   const command = process.argv[2] || 'sync';
   const provider = process.argv[3] || 'auto';
   const isJson = process.argv.includes('--json');
-  const directOnly = process.argv.includes('--direct');
-  const browserOnly = process.argv.includes('--browser');
 
   if (command === 'login') {
     runLogin(provider).catch(err => {
@@ -819,7 +469,7 @@ if (process.argv[1] && process.argv[1].endsWith('browser-quota-sync.mjs')) {
       process.exit(1);
     });
   } else if (command === 'sync') {
-    runSync(provider, { direct: !browserOnly, directOnly, isJson }).then(limits => {
+    runSync(provider).then(limits => {
       if (isJson) {
         console.log(JSON.stringify({ success: true, limits }));
       } else {
@@ -834,8 +484,7 @@ if (process.argv[1] && process.argv[1].endsWith('browser-quota-sync.mjs')) {
       process.exit(1);
     });
   } else {
-    console.log(`Verwendung: node scripts/browser-quota-sync.mjs <login|sync> [openai|google|auto] [--json] [--direct] [--browser]`);
+    console.log(`Verwendung: node scripts/browser-quota-sync.mjs <login|sync> [openai|google|auto] [--json]`);
     process.exit(0);
   }
 }
-
