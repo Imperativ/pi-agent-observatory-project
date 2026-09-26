@@ -21,7 +21,9 @@
     "status:validate": "node scripts/validate-status.mjs",
     "quota:login": "node scripts/browser-quota-sync.mjs login",
     "quota:sync": "node scripts/browser-quota-sync.mjs sync",
-    "quota:direct": "node scripts/browser-quota-sync.mjs sync auto --direct"
+    "quota:direct": "node scripts/browser-quota-sync.mjs sync auto --direct",
+    "export:diagnostics": "node scripts/export-diagnostics.mjs",
+    "export:stdout": "node scripts/export-diagnostics.mjs --stdout"
   },
   "devDependencies": {
     "ajv": "^8.20.0",

@@ -20,33 +20,43 @@ Der Magos hat die Erstellung eines aktualisierten Handoffs und die Sicherung auf
 - **Opt-in Pi-Live-Modus (`pi-dashboard-extension.mjs`):**
   - Meldet Lebenszeichen, Lifecycle-Zustände, Modell-/Provider-Metadaten und Kontext-Auslastung via atomarem Writer (`scripts/live-pi-writer.mjs`).
   - `/limits`-Befehl in Pi integriert; `/limits sync` nutzt den neuen schnellen Direkt-Sync.
+  - **Passive Rate-Limit-Erfassung:** Hook an `after_provider_response` extrahiert Rate-Limit-Header (Anthropic, OpenAI, IETF-Draft) in Echtzeit und aktualisiert die Kontingente im Dashboard.
+  - **Automatischer Quota-Sync:** Periodischer Abgleich im Hintergrund (alle 5 Min.) sowie automatischer Sync bei `agent_settled` / `agent_end` mit Cooldown.
+- **Timeline & Interaktive Filter (`src/render.mjs`, `styles.css`):**
+  - **Visuelle Timeline:** Verbundene Schiene mit statusabhängigen Indikator-Punkten (blau für *working*, gelb für *waiting*, rot für *failed*, grün für *completed*).
+  - **Sortieroption:** Umschaltbar zwischen *Neueste zuerst* (Standard) und *Älteste zuerst* (Chronologischer Ablauf).
+  - **Schnellaktionen:** "Alle aufklappen" / "Alle zuklappen" und "Filter zurücksetzen" (wird dynamisch eingeblendet, sobald Filter aktiv sind).
+  - **Relative Zeitanzeige:** Berechnung von relativen Zeiten ("gerade eben", "vor X Min./Std.") zusätzlich zum formatierten absoluten Zeitstempel.
+- **Anonymisierter Diagnose-Export (`src/export.mjs`, `scripts/export-diagnostics.mjs`):**
+  - **Datenschutz & Geheimnisschutz:** Vollständige Filterung aller sensiblen Tokens, Passwörter, Bearer-Header und API-Keys via `redact()`.
+  - **Pfadanonymisierung:** Automatische Maskierung systemspezifischer Benutzerpfade (`/home/<user>`, `C:\Users\<user>`).
+  - **UI-Download:** Ein Klick auf "Diagnose-Export" im Header lädt einen formatierten Snapshot als JSON herunter.
+  - **CLI-Werkzeug:** `npm run export:diagnostics` oder `npm run export:stdout` für Terminal-Export.
 - **HTTP-Server (`server.mjs`):**
   - Standardmäßig Loopback auf `127.0.0.1:3000` (Port ist frei).
   - RFC1918-LAN-Modus nur opt-in via `--host`.
-  - Strikte CSP, Origin- und Routing-Allowlist.
+  - Strikte CSP, Origin- und Routing-Allowlist (inkl. `/src/export.mjs`).
 - **UI (HTML/CSS/JS):**
   - 9 Abschnitte, zentraler Status, Hell/Dunkel-Theme, barrierefrei nach WCAG A/AA (axe-core verifiziert).
   - Grafische Quota-Balken für 5h- und Wochen-Limits für ChatGPT und Gemini.
 
 ## Bestätigte Prüfungen (in dieser Sitzung verifiziert)
 
-- `npm run check`: Syntax-Check von 23 JS-Dateien erfolgreich; DOM-Senken-Guard und Schemakonformität bestätigt.
-- `npm test`: **89 von 89 Tests bestanden** (inklusive neuer Testsuite für direkte OpenAI- und Google-Quota-Transformer).
+- `npm run check`: Syntax-Check von **26 JS-Dateien** erfolgreich; DOM-Senken-Guard und Schemakonformität bestätigt.
+- `npm test`: **94 von 94 Tests bestanden** (inklusive neuer Testsuites für Diagnose-Export, Header-Parsing und Live-Lifecycle-Hooks).
 - `npm run schema:check`: Ajv-Schema-Kompilierung im Strict-Modus und Negativtests bestanden.
 - `npm run status:validate`: Sample-JSON ist schema-konform.
-- `npm run smoke`: Serverstart mit Loopback, Routing-Allowlist und Origin-Blockierung verifiziert.
-- `npm run test:browser`: Playwright E2E-Lauf (Chromium) inklusive Accessibility (axe WCAG A/AA), Key-Redaktions-Checks, Live-Lebenszeichen, Responsive Design (1200/768/390px) bestanden.
+- `npm run smoke`: Serverstart mit Loopback, Routing-Allowlist (inkl. `/src/export.mjs`) und Origin-Blockierung verifiziert.
+- `npm run test:browser`: Playwright E2E-Lauf (Chromium) inklusive Accessibility (axe WCAG A/AA), Key-Redaktions-Checks, Live-Lebenszeichen, Timeline-Steuerung, Filter-Reset und Diagnose-Download bei allen Breakpoints (1200/768/390px) bestanden.
 - **Live-Endpunktprüfung:** Direkter Abruf von OpenAI- und Google-Quotas mit echten Tokens im Terminal erfolgreich getestet und in `agent-status.json` geschrieben.
 
-## Strategischer Fahrplan für die Wiederaufnahme
+## Strategischer Fahrplan / Nächste Schritte
 
-1. **Pi-Live-Erweiterung (`pi-dashboard-extension.mjs`):**
-   - Optionaler periodischer Quota-Abgleich während aktiver Pi-Sitzungen (z. B. alle 5 Minuten oder bei `agent_end`).
-   - Hook an `after_provider_response` für passive Erfassung von HTTP-Rate-Limit-Headern bei Standard-API-Aufrufen.
-2. **Timeline & Filter:**
-   - Weiterentwicklung der Activity-Timeline und interaktiver Filter.
-3. **Anonymisierter Export:**
-   - Export-Funktion für Diagnose-Snapshots ohne Geheimnisse/Tokens.
+1. **Optionale Pi-Dashboard Features:**
+   - Visualisierung von Token-Trends im Zeitverlauf bei längeren Sitzungen.
+   - Optionale Benachrichtigungstöne oder Desktop-Notifications bei `failed`-Status.
+2. **Paketierung:**
+   - Vorbereitung eines systemd-User-Services für automatischen Hintergrundstart des Observatoriums auf CachyOS.
 
 ---
 
@@ -56,5 +66,5 @@ Bei Start einer neuen Sitzung:
 1. Verzeichnis betreten: `cd /home/imp/Dokumente/imp-projekte/pi-dashboard`
 2. Git-Status und Branch prüfen: `git status --short --branch && git branch --show-current` (muss auf `antiG-work` sein)
 3. Handoff lesen: `cat HANDOFF.md`
-4. Test-Suite ausführen: `npm test && npm run check && npm run schema:check && npm run smoke`
+4. Test-Suite ausführen: `npm test && npm run check && npm run schema:check && npm run smoke && npm run test:browser`
 5. Quota-Status prüfen/aktualisieren: `npm run quota:direct` oder `npm run quota:sync`

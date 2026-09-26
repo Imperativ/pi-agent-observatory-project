@@ -25,6 +25,7 @@ const ROUTES = new Map([
   ['/src/contract.mjs', ['src/contract.mjs', 'text/javascript; charset=utf-8']],
   ['/src/store.mjs', ['src/store.mjs', 'text/javascript; charset=utf-8']],
   ['/src/render.mjs', ['src/render.mjs', 'text/javascript; charset=utf-8']],
+  ['/src/export.mjs', ['src/export.mjs', 'text/javascript; charset=utf-8']],
 ]);
 export function validateConfig(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('config.json muss ein Objekt sein.');
