@@ -1,0 +1,2 @@
+title: Observatory Server ;; workdir: /home/imp/Dokumente/imp-projekte/pi-dashboard ;; command: /usr/bin/fish -c "npm start; exec /usr/bin/fish"
+title: Pi Agent (Live) ;; workdir: /home/imp/Dokumente/imp-projekte/pi-dashboard ;; command: /usr/bin/fish -c "pi --extension /home/imp/Dokumente/imp-projekte/pi-dashboard/pi-dashboard-extension.mjs; exec /usr/bin/fish"
