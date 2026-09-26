@@ -121,6 +121,24 @@ export function normalizeStatus(input) {
       } else if (field === 'progress') {
         const p = m.value;
         if (isObject(p) && Number.isFinite(p.completed) && Number.isFinite(p.total) && p.completed >= 0 && p.total > 0 && p.completed <= p.total && text(p.basis)) value = {completed: p.completed, total: p.total, basis: text(p.basis)};
+      } else if (field === 'rateLimits') {
+        if (isObject(m.value)) {
+          const parseLimitWindow = w => {
+            if (!isObject(w)) return null;
+            const used = typeof w.used === 'number' && Number.isFinite(w.used) && w.used >= 0 ? w.used : null;
+            const total = typeof w.total === 'number' && Number.isFinite(w.total) && w.total > 0 ? w.total : null;
+            const remainingPercent = typeof w.remainingPercent === 'number' && Number.isFinite(w.remainingPercent) && w.remainingPercent >= 0 && w.remainingPercent <= 100
+              ? w.remainingPercent
+              : (used !== null && total !== null && used <= total ? Math.round(((total - used) / total) * 100) : null);
+            const resetsAt = timestampMs(w.resetsAt) !== null ? w.resetsAt : (text(w.resetsAt) || text(w.resetText) || null);
+            if (used === null && total === null && remainingPercent === null && resetsAt === null) return null;
+            return {used, total, remainingPercent, resetsAt};
+          };
+          const fiveHour = parseLimitWindow(m.value.fiveHour);
+          const weekly = parseLimitWindow(m.value.weekly);
+          const detail = text(m.value.detail);
+          if (fiveHour || weekly || detail) value = {fiveHour, weekly, detail};
+        } else value = text(m.value);
       } else if (field === 'state') {
         if (STATES.includes(m.value)) value = m.value;
       } else if (field === 'startedAt') {

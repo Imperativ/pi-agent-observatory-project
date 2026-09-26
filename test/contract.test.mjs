@@ -141,6 +141,35 @@ test('raw scalar/array measurements and invalid optional values become unavailab
   assert.equal(normalizeStatus(base({identity: {name: measurement('hidden', {verification: 'unavailable'})}})).identity.name.value, null);
 });
 
+test('rateLimits accepts clean strings and structured quota windows (fiveHour, weekly)', () => {
+  const textLimit = normalizeStatus(base({usage: {rateLimits: measurement('500 RPM, 30k TPM')}})).usage.rateLimits;
+  assert.equal(textLimit.value, '500 RPM, 30k TPM');
+
+  const structured = normalizeStatus(base({
+    usage: {
+      rateLimits: measurement({
+        fiveHour: {used: 20, total: 100, resetsAt: TIME},
+        weekly: {remainingPercent: 65, resetText: 'Sonntag 00:00'},
+        detail: 'ChatGPT Plus Limits'
+      })
+    }
+  })).usage.rateLimits;
+
+  assert.deepEqual(structured.value, {
+    fiveHour: {used: 20, total: 100, remainingPercent: 80, resetsAt: TIME},
+    weekly: {used: null, total: null, remainingPercent: 65, resetsAt: 'Sonntag 00:00'},
+    detail: 'ChatGPT Plus Limits'
+  });
+
+  const invalid = normalizeStatus(base({
+    usage: {
+      rateLimits: measurement({fiveHour: {used: -5, total: 'invalid'}})
+    }
+  })).usage.rateLimits;
+  assert.equal(invalid.value, null);
+  assert.equal(invalid.verification, 'unavailable');
+});
+
 test('numeric measurements are finite nonnegative numbers, not numeric strings or booleans', () => {
   for (const [section, names] of Object.entries(fields)) {
     for (const field of names.filter(name => numberFields.has(name))) {

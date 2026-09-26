@@ -11,6 +11,8 @@ const stringList = {type: ['array', 'null'], maxItems: 100, items: {type: 'strin
 const listFields = new Set(['tools', 'skills', 'readAreas', 'writeAreas', 'restrictions', 'missingCredentials', 'runtimes']);
 const numericFields = new Set(['uptimeSeconds', 'contextWindow', 'contextUsed', 'inputTokens', 'outputTokens', 'cost']);
 const progress = {type: ['object', 'null'], properties: {completed: {type: 'number', minimum: 0}, total: {type: 'number', exclusiveMinimum: 0}, basis: {type: 'string', minLength: 1, maxLength: 2000}}, required: ['completed', 'total', 'basis'], additionalProperties: true};
+const limitWindow = {type: ['object', 'null'], properties: {used: {type: ['number', 'null'], minimum: 0}, total: {type: ['number', 'null'], exclusiveMinimum: 0}, remainingPercent: {type: ['number', 'null'], minimum: 0, maximum: 100}, resetsAt: {type: ['string', 'null'], maxLength: 2000}, resetText: {type: ['string', 'null'], maxLength: 2000}}, additionalProperties: true};
+const rateLimitsType = {anyOf: [{type: 'null'}, nullableText, {type: 'object', properties: {fiveHour: limitWindow, weekly: limitWindow, detail: nullableText}, additionalProperties: true}]};
 const collection = item => ({type: ['array', 'null'], maxItems: 100, items: item});
 const text = {type: 'string', minLength: 1, maxLength: 2000};
 export function generateSchema() {
@@ -24,7 +26,7 @@ export function generateSchema() {
   for (const [section, fields] of Object.entries(FIELD_LABELS)) {
     properties[section] = {type: ['object', 'null'], additionalProperties: true, properties: {}};
     for (const field of Object.keys(fields)) {
-      const value = listFields.has(field) ? stringList : numericFields.has(field) ? {type: ['number', 'null'], minimum: 0} : field === 'state' ? {enum: [...STATES, null]} : field === 'progress' ? progress : nullableText;
+      const value = listFields.has(field) ? stringList : numericFields.has(field) ? {type: ['number', 'null'], minimum: 0} : field === 'state' ? {enum: [...STATES, null]} : field === 'progress' ? progress : field === 'rateLimits' ? rateLimitsType : nullableText;
       properties[section].properties[field] = metric(value);
     }
   }

@@ -66,6 +66,16 @@ Die Extension schreibt alle drei Sekunden einen validierten, atomar ersetzten `a
 
 Es gibt nur **einen** Live-Writer je Dashboard-Statusdatei. Er hält `agent-status.lock` während der Pi-Sitzung; der manuelle JSONL-Exporter darf währenddessen nicht schreiben. Nach einem Absturz kann die Sperre verwaisen: nur wenn sicher kein Live-Writer mehr läuft, `agent-status.lock` manuell entfernen. Der aktuelle Pi-Prozess nimmt die Extension nicht rückwirkend auf; die Aktivierung muss dort erfolgen, wo die gewünschte Sitzung gestartet wird. Automatische Tests nutzen synthetische Events; zusätzlich wurde Start/Ende einer isolierten Pi-RPC-Instanz **ohne Modellanfrage** erfolgreich geprüft. Ein echter Agentenlauf in der gewünschten produktiven Sitzung steht noch aus.
 
+### Modell auf den ersten Blick & ChatGPT-Account-Limits (5h / Wöchentlich)
+
+- **Modell & Anbieter:** Werden direkt im Kopfbereich (Modell-Badge) und in der ersten Kachel der vierreihigen Übersicht („Aktives Modell & Anbieter“) unmittelbar ohne Scrollen angezeigt.
+- **ChatGPT-Quotas (5-Stunden- und wöchentliches Limit):** Wenn OpenAI als Provider aktiv ist oder Quotas übergeben wurden, zeigt das Dashboard zwei grafische Fortschrittsbalken mit verbleibenden Prozentwerten und Reset-Zeitangaben (sowohl in der Übersicht als auch in Bereich 06 „Kontext & Verbrauch“).
+- **Warum keine automatische Online-Abfrage von `chatgpt.com/settings/usage?tab=overview`?**
+  OpenAI stellt die persönlichen Kontoquotas aus den ChatGPT-Web-Einstellungen **nicht** über eine offene Programmierschnittstelle bereit. Die Seite liegt hinter Cloudflare-Bot-Schutz und erfordert eine aktive Browser-Web-Sitzung (`__Secure-next-auth.session-token`). Der Dashboard-Server ist zudem strikt offline ausgelegt und sendet keine Netzwerkanfragen ins Internet.
+- **Quotas bequem einspeisen:**
+  1. *Direkt in Pi:* In der mit der Extension gestarteten Pi-Sitzung `/limits <5h-%> <Woche-%> [Reset-Zeit]` eingeben, z.B. `/limits 85 60 "18:00 UTC"`. Die Extension aktualisiert die Statusdatei sofort. Zurücksetzen mit `/limits reset`.
+  2. *Über die Kommandozeile:* Ohne laufende Extension `npm run status:limits -- --5h 85 --weekly 60 --reset-5h "18:00 UTC"` ausführen.
+
 ## Optionaler lokaler Pi-JSONL-Export (minimal)
 
 Der Exporter `scripts/generate-pi-status.mjs` liest **nur eine ausdrücklich ausgewählte** Pi-Sitzungsdatei (JSONL). Er sucht keine laufenden Agenten und prüft keine Live-Aktivität. Standardmäßig sind nur Dateien unter `~/.pi/agent/sessions/` zulässig; bei bewusst anders konfiguriertem Pi-Sitzungsverzeichnis `--session-root` als absoluten Pfad angeben. Die ausgewählte `.jsonl` muss ebenfalls ein absoluter Pfad zu einer regulären Datei innerhalb dieses Verzeichnisses sein. Syntax: zuerst ohne Änderung prüfen, dann ausdrücklich schreiben:

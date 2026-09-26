@@ -1,5 +1,6 @@
 import { FIELD_LABELS, freshness, uptime, redact, timestampMs } from './contract.mjs';
 
+const isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const views = new WeakMap();
 const NUMBERS = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 });
 const DATES = new Intl.DateTimeFormat('de-DE', {
@@ -127,6 +128,33 @@ function createView(root) {
             value.replaceChildren(v.length ? list : el('span', 'empty-value', 'Keine Einträge (explizit leere Liste)'));
             listSignature = signature;
           }
+        } else if (field === 'rateLimits' && isObject(v)) {
+          listSignature = null;
+          const card = el('div', 'limit-grid');
+          const addLimit = (label, data) => {
+            if (!data) return;
+            const box = el('div', 'limit-cell');
+            const top = el('div', 'limit-cell-head');
+            top.append(el('span', 'limit-name', label));
+            const pct = data.remainingPercent;
+            const pBadge = el('span', 'badge limit-pct');
+            badge(pBadge, [pct !== null ? `${pct} % übrig` : 'Erfasst', pct !== null && pct <= 15 ? 'danger' : pct !== null && pct <= 35 ? 'warning' : 'info']);
+            top.append(pBadge);
+            const bar = el('progress', 'limit-progress');
+            bar.setAttribute('aria-label', label);
+            bar.max = 100;
+            bar.value = pct ?? 0;
+            const meta = el('div', 'limit-meta');
+            const usedText = data.used != null && data.total != null ? `${data.used} / ${data.total} genutzt` : (data.used != null ? `${data.used} genutzt` : '');
+            const resetText = data.resetsAt ? `Reset: ${date(data.resetsAt) !== 'Nicht verfügbar' ? date(data.resetsAt) : data.resetsAt}` : '';
+            meta.append(el('span', '', usedText), el('span', 'limit-reset', resetText));
+            box.append(top, bar, meta);
+            card.append(box);
+          };
+          addLimit('5-Stunden-Limit (ChatGPT-Nachrichten)', v.fiveHour);
+          addLimit('Wöchentliches Limit (Reasoning / o-Serie)', v.weekly);
+          if (v.detail) card.append(el('p', 'section-note', v.detail));
+          value.replaceChildren(card);
         } else {
           listSignature = null;
           if (v === null) text(value, 'Nicht verfügbar');
@@ -159,11 +187,23 @@ function createView(root) {
   title.id = 'overview-title';
   const identity = el('span', 'overview-agent');
   title.append(identity);
-  titleBlock.append(title);
+  const modelPill = el('div', 'overview-model-pill');
+  const modelPillLabel = el('span', 'model-pill-label', 'Modell');
+  const modelPillVal = el('span', 'model-pill-val');
+  modelPill.append(modelPillLabel, modelPillVal);
+  titleBlock.append(title, modelPill);
   const freshBadge = el('span', 'badge freshness-badge');
   headline.append(titleBlock, freshBadge);
 
   const summary = el('div', 'summary-grid');
+  const modelBox = el('div', 'summary-cell model-cell');
+  modelBox.append(el('span', 'eyebrow', 'Aktives Modell & Anbieter'));
+  const modelHead = el('p', 'model-value');
+  const modelSub = el('p', 'summary-note');
+  const modelLink = el('a', 'quiet-link', 'Modell & Identität →');
+  modelLink.href = '#identity';
+  modelBox.append(modelHead, modelSub, modelLink);
+
   const stateBox = el('div', 'summary-cell state-cell');
   stateBox.append(el('span', 'eyebrow', 'Gesamtstatus · gemeldet'));
   const stateBadge = el('p', 'state-value');
@@ -185,7 +225,10 @@ function createView(root) {
   const issueLink = el('a', 'quiet-link', 'Probleme & nächste Schritte →');
   issueLink.href = '#issues';
   issueBox.append(blockers, blockerSummary, issueLink);
-  summary.append(stateBox, taskBox, issueBox);
+  summary.append(modelBox, stateBox, taskBox, issueBox);
+
+  const quotaOverview = el('div', 'overview-quota');
+  quotaOverview.hidden = true;
 
   const clocks = el('div', 'clock-grid');
   const sourceClock = labelValue(clocks, 'Quellzeit · observedAt');
@@ -196,7 +239,7 @@ function createView(root) {
   const transport = el('span', 'transport-state');
   const pollingLine = el('div', 'polling-line');
   pollingLine.append(polling, transport);
-  hero.append(dataset, headline, summary, clocks, freshnessReason, pollingLine);
+  hero.append(dataset, headline, summary, quotaOverview, clocks, freshnessReason, pollingLine);
 
   const nav = el('nav', 'section-nav');
   nav.setAttribute('aria-label', 'Informationsbereiche');
@@ -419,6 +462,57 @@ function createView(root) {
   categoryFilter.addEventListener('change', () => renderActivity(snapshot));
   statusFilter.addEventListener('change', () => renderActivity(snapshot));
 
+  function renderQuotaOverview(container, limits) {
+    const head = el('div', 'overview-quota-head');
+    const titleNode = el('span', 'overview-quota-title', 'ChatGPT / Provider Account-Limits');
+    const link = el('a', 'quiet-link', 'Verbrauch & Details →');
+    link.href = '#usage';
+    head.append(titleNode, link);
+
+    const grid = el('div', 'overview-quota-grid');
+
+    const addLimit = (label, data) => {
+      if (!data) return;
+      const box = el('div', 'limit-cell');
+      const top = el('div', 'limit-cell-head');
+      top.append(el('span', 'limit-name', label));
+      const pct = data.remainingPercent;
+      const pBadge = el('span', 'badge limit-pct');
+      badge(pBadge, [pct !== null ? `${pct} % übrig` : 'Erfasst', pct !== null && pct <= 15 ? 'danger' : pct !== null && pct <= 35 ? 'warning' : 'info']);
+      top.append(pBadge);
+
+      const bar = el('progress', 'limit-progress');
+      bar.setAttribute('aria-label', label);
+      bar.max = 100;
+      bar.value = pct ?? 0;
+
+      const meta = el('div', 'limit-meta');
+      const usedText = data.used != null && data.total != null ? `${data.used} / ${data.total} genutzt` : (data.used != null ? `${data.used} genutzt` : '');
+      const resetText = data.resetsAt ? `Reset: ${date(data.resetsAt) !== 'Nicht verfügbar' ? date(data.resetsAt) : data.resetsAt}` : '';
+      meta.append(el('span', '', usedText), el('span', 'limit-reset', resetText));
+
+      box.append(top, bar, meta);
+      grid.append(box);
+    };
+
+    addLimit('5-Stunden-Limit (ChatGPT-Nachrichten)', limits.fiveHour);
+    addLimit('Wöchentliches Limit (Reasoning)', limits.weekly);
+
+    container.replaceChildren(head, grid);
+  }
+
+  function renderOpenAINotice(container) {
+    const head = el('div', 'overview-quota-head');
+    const titleNode = el('span', 'overview-quota-title', 'ChatGPT-Kontoquotas (5h / Wöchentlich)');
+    const link = el('a', 'quiet-link', 'Verbrauch & Details →');
+    link.href = '#usage';
+    head.append(titleNode, link);
+
+    const note = el('p', 'section-note', 'Nicht verfügbar · OpenAI stellt Kontolimits von https://chatgpt.com/settings/usage?tab=overview nicht über eine offene API bereit. Quotas können über /limits in Pi oder ein Status-Update übergeben werden.');
+    note.style.margin = '0';
+    container.replaceChildren(head, note);
+  }
+
   const validation = el('details', 'validation-notice');
   const validationSummary = el('summary');
   const validationList = el('ul');
@@ -458,6 +552,30 @@ function createView(root) {
       uptimeRow.update({ value: runtime.seconds === null ? null : duration(runtime.seconds), source: runtime.source,
         observedAt: runtimeObservation, verification: runtime.verification });
       text(identity, valueOf(s?.identity?.name) ? ` / ${s.identity.name.value}` : ' / Identität nicht verfügbar');
+
+      const providerVal = valueOf(s?.identity?.provider);
+      const modelVal = valueOf(s?.identity?.model);
+      const hasModel = Boolean(providerVal || modelVal);
+      const modelDisplay = hasModel ? [providerVal, modelVal].filter(Boolean).join(' · ') : 'Nicht gemeldet';
+      text(modelHead, modelDisplay);
+      text(modelSub, hasModel ? (s?.identity?.model?.source || s?.identity?.provider?.source || 'Gemeldete Modellquelle') : 'Modellinformationen nicht verfügbar');
+      text(modelPillVal, modelDisplay);
+
+      const rateLimitVal = valueOf(s?.usage?.rateLimits);
+      const isOpenAI = providerVal === 'OpenAI' || (typeof modelVal === 'string' && (modelVal.includes('GPT') || modelVal.includes('OpenAI')));
+      const isStructuredLimits = isObject(rateLimitVal) && (rateLimitVal.fiveHour || rateLimitVal.weekly);
+
+      if (isStructuredLimits) {
+        quotaOverview.hidden = false;
+        renderQuotaOverview(quotaOverview, rateLimitVal);
+      } else if (isOpenAI) {
+        quotaOverview.hidden = false;
+        renderOpenAINotice(quotaOverview);
+      } else {
+        quotaOverview.hidden = true;
+        quotaOverview.replaceChildren();
+      }
+
       const mode = s?.dataset;
       text(dataset, mode === 'sample' ? 'BEISPIELDATEN · Demonstration, keine Live-Telemetrie'
         : mode === 'live' ? 'LIVE-DATENSATZ · Gemeldeter Agentenstatus, keine unabhängige Verifikation'

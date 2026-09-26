@@ -33,6 +33,8 @@ test('live writer whitelists model, tools and measured context without prompt or
   assert.equal(custom.identity.provider.value, 'Anderer Anbieter');
   assert.equal(custom.identity.model, undefined);
   assert.equal(JSON.stringify(custom).includes('DEMO_PRIVATE'), false);
+  const withLimits = createLiveSnapshot({now: time, state: 'idle', rateLimits: {fiveHour: {remainingPercent: 80}}});
+  assert.equal(withLimits.usage.rateLimits.value.fiveHour.remainingPercent, 80);
   assert.deepEqual(parseStatus(JSON.stringify(snapshot)).live, {source: 'pi_extension', ended: false});
   assert.equal(createLiveSnapshot({now: time, state: 'idle', ended: true}).assignment.state.value, 'idle');
   assert.throws(() => createLiveSnapshot({now: time, state: 'completed'}));
@@ -95,6 +97,38 @@ test('Pi lifecycle events distinguish work, UI wait, failure, settlement and shu
   assert.equal(closes, 1);
   await send('session_shutdown');
   assert.equal(closes, 1, 'Shutdown ist idempotent.');
+});
+
+test('/limits extension command sets and resets structured rate limits in live snapshot', async () => {
+  const handlers = new Map();
+  const commands = new Map();
+  const emitted = [];
+  const notifications = [];
+  createLiveExtension({
+    on: (type, fn) => { handlers.set(type, fn); },
+    registerCommand: (name, opts) => { commands.set(name, opts); },
+    getActiveTools: () => ['read']
+  }, async () => ({
+    publish: async data => { emitted.push(createLiveSnapshot({...data, now: time})); },
+    close: async () => {},
+  }));
+  const ctx = {
+    isIdle: () => true, hasUI: true, model: {provider: 'openai', id: 'gpt-5'},
+    getContextUsage: () => undefined, mode: 'tui',
+    ui: {notify: (msg, type) => notifications.push({msg, type})}
+  };
+  await handlers.get('session_start')({}, ctx);
+  assert.equal(emitted.at(-1).usage, undefined);
+
+  assert.ok(commands.has('limits'));
+  await commands.get('limits').handler('80% 65% "17:30 UTC"', ctx);
+  const snap = emitted.at(-1);
+  assert.equal(snap.usage.rateLimits.value.fiveHour.remainingPercent, 80);
+  assert.equal(snap.usage.rateLimits.value.weekly.remainingPercent, 65);
+  assert.equal(snap.usage.rateLimits.value.fiveHour.resetsAt, '17:30 UTC');
+
+  await commands.get('limits').handler('reset', ctx);
+  assert.equal(emitted.at(-1).usage, undefined);
 });
 
 test('invalid live metadata never becomes an unvalidated health claim', () => {

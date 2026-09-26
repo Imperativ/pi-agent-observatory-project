@@ -6,21 +6,31 @@ import {parseStatus} from '../src/contract.mjs';
 
 const PROJECT = fileURLToPath(new URL('../', import.meta.url));
 const SOURCE = 'Pi-Extension · beobachteter Lifecycle';
-const PROVIDERS = Object.freeze({anthropic: 'Anthropic', openai: 'OpenAI', google: 'Google', xai: 'xAI', mistral: 'Mistral', openrouter: 'OpenRouter', 'github-copilot': 'GitHub Copilot'});
+const PROVIDERS = Object.freeze({
+  anthropic: 'Anthropic',
+  openai: 'OpenAI',
+  'openai-codex': 'OpenAI Codex',
+  google: 'Google',
+  'google-antigravity': 'Google',
+  xai: 'xAI',
+  mistral: 'Mistral',
+  openrouter: 'OpenRouter',
+  'github-copilot': 'GitHub Copilot',
+});
 const TOOLS = new Set(['read', 'bash', 'edit', 'write', 'powershell', 'grep', 'find', 'ls']);
 function modelFamily(id) {
   if (typeof id !== 'string') return null;
-  if (/^claude-[a-z0-9.-]{1,80}$/.test(id)) return 'Claude (Modellfamilie)';
-  if (/^gpt-[a-z0-9.-]{1,80}$/.test(id)) return 'GPT (Modellfamilie)';
-  if (/^gemini-[a-z0-9.-]{1,80}$/.test(id)) return 'Gemini (Modellfamilie)';
-  if (/^o[1-9][a-z0-9.-]{0,80}$/.test(id)) return 'OpenAI o-Serie (Modellfamilie)';
-  if (/^llama-[a-z0-9.-]{1,80}$/.test(id)) return 'Llama (Modellfamilie)';
+  if (/claude/i.test(id)) return 'Claude (Modellfamilie)';
+  if (/gpt/i.test(id)) return 'GPT (Modellfamilie)';
+  if (/gemini/i.test(id)) return 'Gemini (Modellfamilie)';
+  if (/\b(?:o1|o3|o4)\b/i.test(id) || /^o[1-9]/i.test(id)) return 'OpenAI o-Serie (Modellfamilie)';
+  if (/llama/i.test(id)) return 'Llama (Modellfamilie)';
   return null;
 }
 const metric = (value, source, observedAt, verification = 'self_reported') => ({value, source, observedAt, verification});
 
 /** Construct from a strict allowlist; never accept prompts, paths, tool arguments or credentials. */
-export function createLiveSnapshot({now = new Date(), state = 'idle', ended = false, model, tools, context, mode} = {}) {
+export function createLiveSnapshot({now = new Date(), state = 'idle', ended = false, model, tools, context, mode, rateLimits} = {}) {
   if (!(now instanceof Date) || !Number.isFinite(now.getTime())) throw new Error('Ungültige Lebenszeichenzeit.');
   if (!['idle', 'working', 'waiting', 'failed'].includes(state) || typeof ended !== 'boolean') throw new Error('Ungültiger Pi-Lifecycle-Zustand.');
   const observedAt = now.toISOString();
@@ -45,6 +55,10 @@ export function createLiveSnapshot({now = new Date(), state = 'idle', ended = fa
   }
   if (['tui', 'rpc', 'json', 'print'].includes(mode)) {
     snapshot.environment = {executionMode: metric(`Pi ${mode}`, 'Pi · Laufmodus', observedAt)};
+  }
+  if (rateLimits) {
+    if (!snapshot.usage) snapshot.usage = {};
+    snapshot.usage.rateLimits = metric(rateLimits, 'ChatGPT / Provider Quotas', observedAt);
   }
   parseStatus(JSON.stringify(snapshot));
   return snapshot;

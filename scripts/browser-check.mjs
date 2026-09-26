@@ -145,6 +145,31 @@ try {
   assert.match(await page.locator('.state-value').innerText(), /Pi-Sitzung beendet/);
   console.log('Browser: Pi-Lebenszeichen aktiv, veraltet und beendet korrekt unterschieden.');
 
+  const withLimits = structuredClone(updated);
+  withLimits.dataset = 'live';
+  withLimits.observedAt = new Date().toISOString();
+  withLimits.identity.provider = {value: 'OpenAI', source: 'browser-test', observedAt: withLimits.observedAt, verification: 'self_reported'};
+  withLimits.identity.model = {value: 'GPT (Modellfamilie)', source: 'browser-test', observedAt: withLimits.observedAt, verification: 'self_reported'};
+  withLimits.assignment.goal.value = 'AGENT_PROBE_LIMITS';
+  withLimits.usage.rateLimits = {
+    value: {
+      fiveHour: {remainingPercent: 75, used: 25, total: 100, resetsAt: '18:30 UTC'},
+      weekly: {remainingPercent: 60, used: 40, total: 100, resetsAt: 'Sonntag 00:00 UTC'},
+      detail: 'ChatGPT Plus Account Quota'
+    },
+    source: 'browser-test',
+    observedAt: withLimits.observedAt,
+    verification: 'self_reported'
+  };
+  await writeFile(statusPath, JSON.stringify(withLimits));
+  await page.getByText('AGENT_PROBE_LIMITS').first().waitFor({timeout: 8000});
+  assert.match(await page.locator('.model-value').innerText(), /OpenAI · GPT/);
+  assert.match(await page.locator('.overview-model-pill').innerText(), /OpenAI · GPT/);
+  assert.equal(await page.locator('.overview-quota progress').count(), 2, 'Zwei grafische Quota-Balken in der Übersicht.');
+  assert.match(await page.locator('.overview-quota').innerText(), /75 % übrig/);
+  assert.match(await page.locator('.overview-quota').innerText(), /60 % übrig/);
+  console.log('Browser: Modell auf den ersten Blick und grafische ChatGPT-Limits verifiziert.');
+
   await page.evaluate(axe.source);
   for (const {width, height, columns} of [
     {width: 1200, height: 800, columns: 2},

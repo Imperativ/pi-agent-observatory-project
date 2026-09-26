@@ -13,18 +13,18 @@ Der Magos hat die Erstellung eines aktualisierten Handoffs und die Sicherung auf
 - **Opt-in Pi-Live-Modus:** `pi-dashboard-extension.mjs` meldet Lebenszeichen, Pi-Lifecycle-Zustand, bekannten Anbieter/Modellfamilie (keine rohe Modell-ID), bekannte Standard-Werkzeugnamen und bei Verfügbarkeit Kontextschätzung über einen exklusiven, atomaren Writer (`scripts/live-pi-writer.mjs`). Ohne Pi-Extension bleibt die Sample-/Datei-Logik unverändert; isolierter Pi-RPC-Start/Ende erfolgreich, produktiver Agentenlauf noch nicht abgenommen.
 - **HTTP-Server:** Standardmäßig Loopback; expliziter RFC1918-IPv4-LAN-Modus per `--host` für den einzelnen Besitzer. Routing-Allowlist, Host/Origin/CSP-Schutz, redigierter Status, Sample-Fallback. LAN-Modus hat keine Anmeldung/TLS; Firewall und Router-Konfiguration sind nicht geprüft.
 - **Store & Refresh:** Polling, Timeout-Handling, Retention des letzten validen Snapshots bei Fehler.
-- **UI (HTML/CSS/JS):** 9 Abschnitte, zentraler Status, Hell/Dunkel-Theme, A11y-Grundgerüst (WCAG A/AA via axe-core in Playwright verifiziert).
+- **UI (HTML/CSS/JS):** 9 Abschnitte, zentraler Status, Hell/Dunkel-Theme, A11y-Grundgerüst (WCAG A/AA via axe-core in Playwright verifiziert). Modell & Anbieter prominent auf den ersten Blick im Kopfbereich und in der Übersichtskachel; grafische Quota-Meters für ChatGPT/OpenAI-Limits (5h- und Weekly-Limit).
 - **Dokumentation & Verträge:** `CONTRACT.md`, `README.md`, `VERIFICATION.md`, `HANDOFF.md` vollständig gepflegt.
 
 ## Bestätigte Prüfungen (in der aktuellen Sitzung re-validiert)
 
-- `npm run check`: Syntax-Check von 20 JS-Dateien erfolgreich.
-- `npm test`: **79 von 79 Tests bestanden** (Contract-, Live-/Exporter-, Server- und Store-Suite).
+- `npm run check`: Syntax-Check von 21 JS-Dateien erfolgreich.
+- `npm test`: **81 von 81 Tests bestanden** (Contract-, Quota-, Live-/Exporter-, Server- und Store-Suite).
 - `npm run schema:check`: Ajv-Schema-Kompilierung und Negativtest-Suite erfolgreich.
 - `npm run status:validate`: Sample-JSON ist schema-konform.
 - `npm run smoke`: Standard-Loopback-Serverstart über `npm start -- --port 0` mit Allowlist- & Routing-Regeln verifiziert; LAN-Host/Origin separat mit simulierten HTTP-Anfragen geprüft, keine Abnahme über ein zweites Gerät.
-- `npm run test:browser`: Playwright E2E-Lauf (Chromium) inklusive Accessibility (axe WCAG A/AA), Key-Redaktions-Checks, Live-Lebenszeichen (aktiv/veraltet/beendet), Layout-/A11y-Prüfungen bei 1200/768/390px, Dunkelmodus und `prefers-reduced-motion` erfolgreich. Manuelle Abnahme bleibt offen.
-- `git status`: Vor Commit/Push den aktuellen Arbeitsbaum erneut prüfen; die letzte Baseline vor der Pi-Live-Anbindung war `430f14e` auf `main`.
+- `npm run test:browser`: Playwright E2E-Lauf (Chromium) inklusive Accessibility (axe WCAG A/AA), Key-Redaktions-Checks, Live-Lebenszeichen (aktiv/veraltet/beendet), Modell-auf-den-ersten-Blick, grafischer ChatGPT-Limits, Layout-/A11y-Prüfungen bei 1200/768/390px, Dunkelmodus und `prefers-reduced-motion` erfolgreich. Manuelle Abnahme bleibt offen.
+- `git status`: Vor Commit/Push den aktuellen Arbeitsbaum erneut prüfen; die letzte Baseline war `98a56f7` auf `main`.
 
 ## Strategischer Fahrplan für die Wiederaufnahme (Nächste Phasen)
 

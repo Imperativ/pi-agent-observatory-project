@@ -8,6 +8,7 @@ export function createLiveExtension(pi, createWriter = createLiveWriter) {
   let priorPromptState = null;
   let failed = false;
   let reportedError = false;
+  let currentLimits = null;
 
   function report(ctx) {
     if (reportedError) return;
@@ -22,9 +23,47 @@ export function createLiveExtension(pi, createWriter = createLiveWriter) {
         state, ended,
         model: model ? {provider: model.provider, id: model.id, contextWindow: model.contextWindow} : undefined,
         tools: pi.getActiveTools(), context: ctx.getContextUsage(), mode: ctx.mode,
+        rateLimits: currentLimits,
       });
       reportedError = false;
     } catch { report(ctx); }
+  }
+
+  if (typeof pi.registerCommand === 'function') {
+    pi.registerCommand('limits', {
+      description: 'ChatGPT Plus/Pro Quotas setzen: /limits <5h-%> <Woche-%> [Reset-Zeit]',
+      handler: async (args, ctx) => {
+        const parts = args.trim().split(/\s+/).filter(Boolean);
+        if (!parts.length) {
+          const msg = currentLimits
+            ? `Aktuelle Quotas: 5h ${currentLimits.fiveHour?.remainingPercent ?? '-'} %, Woche ${currentLimits.weekly?.remainingPercent ?? '-'} %`
+            : 'Keine ChatGPT-Quotas gesetzt. Verwendung: /limits <5h-Prozent> <Woche-Prozent> [Reset-Zeit] (z.B. /limits 80 65 "17:30 UTC")';
+          if (ctx.hasUI) ctx.ui.notify(msg, 'info');
+          return;
+        }
+        if (parts[0] === 'reset' || parts[0] === 'clear') {
+          currentLimits = null;
+          await publish(ctx);
+          if (ctx.hasUI) ctx.ui.notify('ChatGPT-Quotas zurückgesetzt.', 'info');
+          return;
+        }
+        const p5h = Number(parts[0].replace('%', ''));
+        const pWeekly = parts[1] && parts[1] !== '-' ? Number(parts[1].replace('%', '')) : null;
+        const rawReset = parts.slice(pWeekly !== null ? 2 : 1).join(' ');
+        const resetText = rawReset ? rawReset.replace(/^["']|["']$/g, '').trim() : null;
+        if (!Number.isFinite(p5h) || p5h < 0 || p5h > 100 || (pWeekly !== null && (!Number.isFinite(pWeekly) || pWeekly < 0 || pWeekly > 100))) {
+          if (ctx.hasUI) ctx.ui.notify('Ungültige Prozentwerte (0 bis 100). Beispiel: /limits 85 60', 'error');
+          return;
+        }
+        currentLimits = {
+          fiveHour: {remainingPercent: p5h, resetsAt: resetText},
+          weekly: pWeekly !== null ? {remainingPercent: pWeekly, resetsAt: null} : null,
+          detail: 'ChatGPT Plus/Pro Quota (via /limits in Pi)',
+        };
+        await publish(ctx);
+        if (ctx.hasUI) ctx.ui.notify(`Quotas aktualisiert: 5h ${p5h} %, Woche ${pWeekly ?? '-'} %.`, 'info');
+      },
+    });
   }
 
   pi.on('session_start', async (_event, ctx) => {
