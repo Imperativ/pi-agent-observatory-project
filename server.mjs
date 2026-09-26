@@ -1,4 +1,5 @@
 import http from 'node:http';
+import {isIP} from 'node:net';
 import {readFile, stat, realpath} from 'node:fs/promises';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import path from 'node:path';
@@ -7,6 +8,15 @@ import {parseStatus} from './src/contract.mjs';
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const MAX_BYTES = 256 * 1024;
 export const DEFAULT_CONFIG = Object.freeze({pollIntervalMs: 3000, staleAfterMs: 120000, clockSkewMs: 5000, timeoutMs: 5000});
+/** An explicit interface address, never a wildcard, DNS name or public address. */
+export function validateBindHost(host) {
+  if (typeof host !== 'string' || isIP(host) !== 4) throw new Error('Nur eine private IPv4-Adresse oder 127.0.0.1 ist erlaubt.');
+  const [a, b] = host.split('.').map(Number);
+  if (host !== '127.0.0.1' && !(a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168))) {
+    throw new Error('Nur eine private IPv4-Adresse oder 127.0.0.1 ist erlaubt.');
+  }
+  return host;
+}
 const ROUTES = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/index.html', ['index.html', 'text/html; charset=utf-8']],
@@ -41,7 +51,8 @@ function send(res, status, body, type = 'application/json; charset=utf-8', head 
   res.writeHead(status, {'Content-Type': type, 'Content-Length': Buffer.byteLength(data)});
   res.end(head ? undefined : data);
 }
-export function createServer({statusPath = path.join(ROOT, 'agent-status.json'), configPath = path.join(ROOT, 'config.json')} = {}) {
+export function createServer({statusPath = path.join(ROOT, 'agent-status.json'), configPath = path.join(ROOT, 'config.json'), bindHost = '127.0.0.1'} = {}) {
+  validateBindHost(bindHost);
   return http.createServer(async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -49,9 +60,9 @@ export function createServer({statusPath = path.join(ROOT, 'agent-status.json'),
     res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
     res.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
     const port = res.socket.localPort;
-    const allowedHosts = [`127.0.0.1:${port}`, `localhost:${port}`];
+    const allowedHosts = bindHost === '127.0.0.1' ? [`127.0.0.1:${port}`, `localhost:${port}`] : [`${bindHost}:${port}`];
     if (!allowedHosts.includes(req.headers.host) || (req.headers.origin && !allowedHosts.map(h => `http://${h}`).includes(req.headers.origin)) || req.headers['sec-fetch-site'] === 'cross-site') {
-      send(res, 403, {error: 'Nur lokale, gleichursprüngliche Anfragen sind erlaubt.'}); return;
+      send(res, 403, {error: 'Nur freigegebene, gleichursprüngliche Anfragen sind erlaubt.'}); return;
     }
     if (!['GET', 'HEAD'].includes(req.method)) { res.setHeader('Allow', 'GET, HEAD'); send(res, 405, {error: 'Nur lesender Zugriff ist erlaubt.'}); return; }
     const head = req.method === 'HEAD';
@@ -84,15 +95,27 @@ export function createServer({statusPath = path.join(ROOT, 'agent-status.json'),
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   const args = process.argv.slice(2);
   let port = 4318;
-  if (args.length) {
-    if (args.length !== 2 || args[0] !== '--port' || !/^\d+$/.test(args[1]) || +args[1] > 65535) {
-      console.error('Verwendung: node server.mjs [--port 0..65535]'); process.exitCode = 1;
-    } else port = Number(args[1]);
+  let bindHost = '127.0.0.1';
+  const seen = new Set();
+  for (let i = 0; i < args.length; i += 2) {
+    const flag = args[i], value = args[i + 1];
+    let invalid = !['--port', '--host'].includes(flag) || !value || seen.has(flag) ||
+      (flag === '--port' && (!/^\d+$/.test(value) || +value > 65535));
+    if (flag === '--host' && !invalid) {
+      try { validateBindHost(value); } catch { invalid = true; }
+    }
+    if (invalid) {
+      console.error('Verwendung: node server.mjs [--port 0..65535] [--host <private-IPv4|127.0.0.1>]'); process.exitCode = 1;
+      break;
+    }
+    seen.add(flag);
+    if (flag === '--port') port = Number(value);
+    else bindHost = value;
   }
   if (!process.exitCode) {
-    const server = createServer();
-    server.on('error', error => { console.error(`Start fehlgeschlagen (${error.code || 'Serverfehler'}). Port prüfen oder --port verwenden.`); process.exitCode = 1; });
-    server.listen(port, '127.0.0.1', () => console.log(`Agent Observatory: http://127.0.0.1:${server.address().port}`));
+    const server = createServer({bindHost});
+    server.on('error', error => { console.error(`Start fehlgeschlagen (${error.code || 'Serverfehler'}). Adresse, Port oder Firewall prüfen.`); process.exitCode = 1; });
+    server.listen(port, bindHost, () => console.log(`Agent Observatory: http://${bindHost}:${server.address().port}`));
     for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => server.close(() => { process.exitCode = 0; }));
   }
 }

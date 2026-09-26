@@ -270,6 +270,14 @@ function createView(root) {
     controls.append(wrapper);
     return select;
   }
+  const searchLabel = el('label', 'filter-label', 'Aktivitäten durchsuchen');
+  const searchFilter = el('input');
+  searchFilter.id = 'activity-search';
+  searchFilter.type = 'search';
+  searchFilter.maxLength = 200;
+  searchFilter.placeholder = 'Zusammenfassung oder Kategorie';
+  searchLabel.append(searchFilter);
+  controls.append(searchLabel);
   const categoryFilter = filterControl('activity-category', 'Kategorie');
   const statusFilter = filterControl('activity-status', 'Status');
   function option(value, label) {
@@ -296,8 +304,10 @@ function createView(root) {
   const openActivityKeys = new Set();
   function renderActivity(s) {
     const source = s?.activity || [];
+    const query = searchFilter.value.trim().toLocaleLowerCase('de');
     const filtered = source.filter(item => (!categoryFilter.value || item.category === categoryFilter.value)
-      && (!statusFilter.value || item.status === statusFilter.value));
+      && (!statusFilter.value || item.status === statusFilter.value)
+      && (!query || `${item.summary} ${item.category}`.toLocaleLowerCase('de').includes(query)));
     text(resultCount, s?.availability?.activity === true ? `${filtered.length} von ${source.length} Ereignissen sichtbar.` : 'Keine filterbaren Ereignisse verfügbar.');
     updateAvailability(activity.availability, s?.availability?.activity === true, source.length, 'Aktivität');
     for (const node of activity.list.querySelectorAll('details[open]')) openActivityKeys.add(node.dataset.entryKey);
@@ -405,6 +415,7 @@ function createView(root) {
     renderArtifacts(s);
     renderIssues(s);
   }
+  searchFilter.addEventListener('input', () => renderActivity(snapshot));
   categoryFilter.addEventListener('change', () => renderActivity(snapshot));
   statusFilter.addEventListener('change', () => renderActivity(snapshot));
 

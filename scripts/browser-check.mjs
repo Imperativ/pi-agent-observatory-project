@@ -47,11 +47,18 @@ try {
   await page.locator('#activity-category').selectOption('information');
   assert.match(await page.locator('#activity .filter-count').innerText(), /1 von 2/);
   await page.locator('#activity-category').selectOption('');
+  const search = page.locator('#activity-search');
+  await search.fill('TOKENVERBRAUCH');
+  assert.match(await page.locator('#activity .filter-count').innerText(), /1 von 2/);
+  await page.locator('#activity-category').selectOption('information');
+  assert.match(await page.locator('#activity .filter-count').innerText(), /0 von 2/);
+  await page.locator('#activity-category').selectOption('');
+  await search.fill('');
   const firstDetail = page.locator('#activity details.activity-detail').first();
   await firstDetail.locator('summary').focus();
   await firstDetail.locator('summary').press('Enter');
   assert.notEqual(await firstDetail.getAttribute('open'), null, 'Aktivitätsdetails per Tastatur öffnen.');
-  console.log('Browser: neun Bereiche, Aktivitätsfilter und Tastatur-Details geprüft.');
+  console.log('Browser: neun Bereiche, Aktivitätssuche/-filter und Tastatur-Details geprüft.');
 
   await page.keyboard.press('Tab');
   assert.notEqual(await page.evaluate(() => document.activeElement?.tagName), 'BODY', 'Tastaturfokus muss sichtbar navigierbar sein.');
@@ -66,11 +73,15 @@ try {
   const updated = structuredClone(sample);
   updated.observedAt = new Date().toISOString();
   updated.assignment.goal = {value: 'AGENT_PROBE_AKTUALISIERT', source: 'browser-test', observedAt: updated.observedAt, verification: 'self_reported'};
+  await search.fill('Tokenverbrauch');
   await writeFile(statusPath, JSON.stringify(updated));
   await page.getByText('AGENT_PROBE_AKTUALISIERT').first().waitFor({timeout: 8000});
   assert.match(await page.locator('#dashboard').innerText(), /AGENT_PROBE_AKTUALISIERT/);
+  assert.equal(await search.inputValue(), 'Tokenverbrauch', 'Suchanfrage bleibt nach Polling erhalten.');
+  assert.match(await page.locator('#activity .filter-count').innerText(), /1 von 2/);
   assert.notEqual(await page.locator('#activity details.activity-detail').first().getAttribute('open'), null, 'Geöffnete Details bleiben nach Polling erhalten.');
-  console.log('Browser: Statusänderung ohne Neubau, Detailzustand erhalten.');
+  await search.fill('');
+  console.log('Browser: Statusänderung ohne Neubau, Suchanfrage und Detailzustand erhalten.');
 
   const injected = structuredClone(updated);
   injected.observedAt = new Date().toISOString();
@@ -112,12 +123,45 @@ try {
   console.log('Browser: alte, fehlende und ungültige Quellzeit markiert.');
 
   await page.evaluate(axe.source);
-  const report = await page.evaluate(() => window.axe.run(document, {runOnly: {type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']}}));
-  assert.deepEqual(report.violations.map(v => `${v.id}: ${v.nodes.map(n => n.target.join(' ')).join(', ')}`), [], 'axe WCAG-Verstöße');
-  await page.setViewportSize({width: 390, height: 844});
-  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, 'Mobilansicht darf nicht horizontal überlaufen.');
+  for (const {width, height, columns} of [
+    {width: 1200, height: 800, columns: 2},
+    {width: 768, height: 1024, columns: 1},
+    {width: 390, height: 844, columns: 1}
+  ]) {
+    await page.setViewportSize({width, height});
+    const layout = await page.evaluate(() => {
+      const cards = [...document.querySelectorAll('#dashboard section.card')];
+      return {
+        overflow: document.documentElement.scrollWidth > innerWidth + 1 || document.body.scrollWidth > innerWidth + 1,
+        columns: getComputedStyle(document.querySelector('.dashboard-grid')).gridTemplateColumns.split(' ').length,
+        cards: cards.length,
+        controlsVisible: [...document.querySelectorAll('.header-actions button, .filters select')].every(node => {
+          const bounds = node.getBoundingClientRect();
+          return bounds.width > 0 && bounds.left >= -1 && bounds.right <= innerWidth + 1;
+        })
+      };
+    });
+    assert.equal(layout.overflow, false, `${width}px: kein horizontaler Überlauf.`);
+    assert.equal(layout.columns, columns, `${width}px: erwartete Anzahl Dashboard-Spalten.`);
+    assert.equal(layout.cards, 9, `${width}px: alle Bereiche bleiben vorhanden.`);
+    assert.equal(layout.controlsVisible, true, `${width}px: Bedienelemente bleiben im sichtbaren Bereich.`);
+    const report = await page.evaluate(() => window.axe.run(document, {runOnly: {type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']}}));
+    assert.deepEqual(report.violations.map(v => `${v.id}: ${v.nodes.map(n => n.target.join(' ')).join(', ')}`), [], `${width}px: axe WCAG-Verstöße`);
+    if (width === 1200) {
+      const initialTheme = await page.locator('html').getAttribute('data-theme');
+      if (initialTheme !== 'dark') await theme.click();
+      const darkReport = await page.evaluate(() => window.axe.run(document, {runOnly: {type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']}}));
+      assert.deepEqual(darkReport.violations.map(v => `${v.id}: ${v.nodes.map(n => n.target.join(' ')).join(', ')}`), [], '1200px: axe WCAG-Verstöße im Dunkelmodus');
+      if (initialTheme !== 'dark') await theme.click();
+    }
+  }
+  await page.emulateMedia({reducedMotion: 'no-preference'});
+  assert.equal(await page.locator('html').evaluate(node => getComputedStyle(node).scrollBehavior), 'smooth', 'Normale Bewegung nutzt sanftes Scrollen.');
+  await page.emulateMedia({reducedMotion: 'reduce'});
+  assert.equal(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), true, 'Reduzierte Bewegung wird emuliert.');
+  assert.equal(await page.locator('html').evaluate(node => getComputedStyle(node).scrollBehavior), 'auto', 'Reduzierte Bewegung deaktiviert sanftes Scrollen.');
   assert.deepEqual(errors, [], 'Keine ungefangenen Browserfehler.');
-  console.log('Browser: axe WCAG A/AA, Mobilbreite, keine Page-Errors.');
+  console.log('Browser: axe WCAG A/AA und Layout bei 1200/768/390px, reduzierte Bewegung, keine Page-Errors.');
 } finally {
   await browser?.close();
   await new Promise(resolve => { server.close(resolve); server.closeAllConnections(); });

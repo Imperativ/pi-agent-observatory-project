@@ -16,6 +16,7 @@
     "schema:check": "node scripts/check-schema.mjs",
     "test:browser": "node scripts/browser-check.mjs",
     "status:init": "node scripts/init-status.mjs",
+    "status:pi": "node scripts/generate-pi-status.mjs",
     "status:validate": "node scripts/validate-status.mjs"
   },
   "devDependencies": {

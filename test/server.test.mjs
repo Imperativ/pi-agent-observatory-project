@@ -5,17 +5,17 @@ import {once} from 'node:events';
 import {mkdtemp, writeFile, rm} from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {createServer, validateConfig, DEFAULT_CONFIG} from '../server.mjs';
+import {createServer, validateBindHost, validateConfig, DEFAULT_CONFIG} from '../server.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const snapshot = () => ({schemaVersion: '1.0', dataset: 'live', observedAt: '2026-01-01T12:00:00Z', assignment: {goal: {value: 'Initial goal', source: 'test', observedAt: '2026-01-01T12:00:00Z', verification: 'self_reported'}}});
-async function fixture(t) {
+async function fixture(t, bindHost = '127.0.0.1') {
   const dir = await mkdtemp(path.join(root, '.test-tmp-http-'));
   const statusPath = path.join(dir, 'status.json');
   const configPath = path.join(dir, 'config.json');
   await writeFile(statusPath, JSON.stringify(snapshot()));
   await writeFile(configPath, JSON.stringify(DEFAULT_CONFIG));
-  const server = createServer({statusPath, configPath});
+  const server = createServer({statusPath, configPath, bindHost});
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
   const port = server.address().port;
@@ -67,6 +67,19 @@ test('Only allowlisted routes, hosts, origins and read methods are accepted', as
   assert.match(head.headers['content-security-policy'], /frame-ancestors 'none'/);
   assert.equal(head.headers['cache-control'], 'no-store');
   assert.equal(head.headers['access-control-allow-origin'], undefined);
+});
+
+test('LAN mode accepts only an explicit private IPv4 Host and same-origin request', async t => {
+  for (const host of ['127.0.0.1', '10.4.5.6', '172.16.0.1', '172.31.255.254', '192.168.1.27']) assert.equal(validateBindHost(host), host);
+  for (const host of ['0.0.0.0', 'localhost', '::1', '169.254.1.2', '172.15.255.255', '172.32.0.1', '8.8.8.8', '1.2.3.4', '192.169.1.1']) assert.throws(() => validateBindHost(host), host);
+  assert.throws(() => createServer({bindHost: '0.0.0.0'}));
+  const f = await fixture(t, '192.168.1.27');
+  const host = `192.168.1.27:${f.port}`;
+  assert.equal((await raw(f.port, '/status.json', {host})).status, 200);
+  assert.equal((await raw(f.port, '/status.json', {host, origin: `http://${host}`})).status, 200);
+  assert.equal((await raw(f.port, '/status.json', {host: `127.0.0.1:${f.port}`})).status, 403);
+  assert.equal((await raw(f.port, '/status.json', {host, origin: `http://127.0.0.1:${f.port}`})).status, 403);
+  assert.equal((await raw(f.port, '/status.json', {host, 'sec-fetch-site': 'cross-site'})).status, 403);
 });
 
 test('Server redacts before transmission and excludes unrecognized data; body is bounded', async t => {

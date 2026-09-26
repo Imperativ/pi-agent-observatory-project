@@ -1,6 +1,6 @@
 # Agent Observatory — lokaler Offline-v1-Zwischenstand
 
-Ein lokales, nur lesendes Dashboard für **bereitgestellte** Agenten-Snapshots. Es erkennt keinen laufenden Agenten selbst und sendet keine Daten an einen Onlinedienst. **Zwischenstand:** HTTP- und automatisierte Browsertests wurden durchgeführt; eine manuelle visuelle und vollständige Tastatur-Abnahme steht noch aus. Reproduzierbare Ergebnisse und offene Punkte stehen in `VERIFICATION.md` und `HANDOFF.md`.
+Ein lokal oder im eigenen LAN nutzbares, nur lesendes Dashboard für **bereitgestellte** Agenten-Snapshots. Es erkennt keinen laufenden Agenten selbst und sendet keine Daten an einen Onlinedienst. Nutzung durch einen einzelnen Besitzer ist vorgesehen; der LAN-Modus hat jedoch **keine Anmeldung** und ist von anderen Geräten im gleichen Netz erreichbar. **Zwischenstand:** HTTP- und automatisierte Browsertests wurden durchgeführt; eine manuelle visuelle und vollständige Tastatur-Abnahme steht noch aus. Reproduzierbare Ergebnisse und offene Punkte stehen in `VERIFICATION.md` und `HANDOFF.md`.
 
 ## Start und Prüfungen
 
@@ -10,7 +10,9 @@ Voraussetzung: Node.js >= 22; für den Offline-Server sind weder `npm install` n
 npm start
 ```
 
-Öffnen Sie `http://127.0.0.1:4318/` im Browser (nicht `index.html` über `file://`). Der Server bindet ausschließlich an `127.0.0.1`; bei belegtem Port: `npm start -- --port 4319`. Beenden mit `Ctrl+C`.
+Öffnen Sie `http://127.0.0.1:4318/` im Browser (nicht `index.html` über `file://`). Ohne zusätzliche Option bindet der Server ausschließlich an `127.0.0.1`; bei belegtem Port: `npm start -- --port 4319`. Beenden mit `Ctrl+C`.
+
+**Optional für ein vertrautes LAN:** Ermitteln Sie die private IPv4-Adresse **des Server-Rechners** (beispielsweise `192.168.1.27`; dies ist nur ein Beispiel, nicht die geprüfte Adresse dieses Geräts). Starten Sie zum Beispiel `npm start -- --host 192.168.1.27` (Adresse durch die tatsächlich ermittelte eigene IPv4 ersetzen). Im Browser eines anderen LAN-Geräts dann die angezeigte Adresse öffnen, im Beispiel `http://192.168.1.27:4318/`. `--port 4319` ist kombinierbar. Zulässig sind nur `10.x.x.x`, `172.16–31.x.x` und `192.168.x.x`; kein `0.0.0.0`, öffentlicher Hostname oder öffentliches Interface. Beim Start muss die gewählte Adresse auf dem Rechner vorhanden sein. Lokale Tests prüfen die Host-/Origin-Regeln, **nicht** die tatsächliche Erreichbarkeit von einem zweiten Gerät oder die Router-/Firewall-Konfiguration.
 
 ```sh
 npm run status:validate
@@ -50,6 +52,20 @@ Eine eigene JSON-Quelle beginnt beispielsweise so (weitere Felder: `agent-status
 
 Die Uhrzeiten im Beispiel sind **nur Formatbeispiele**, keine aktuelle Messung. `schemaVersion` ist exakt `"1.0"`; `dataset` ist `sample` oder `live` und bedeutet **Quelle**, nicht unabhängige Prüfung oder Aktualität. Zeitangaben benötigen ISO-8601 mit expliziter Zeitzone. Fehlende optionale Messungen bleiben unbekannt (`value: null`, `verification: "unavailable"`), statt Modell, Rechte, Token, Kosten oder Fortschritt zu erraten. Fehlende Listen bedeuten „nicht verfügbar“; explizit leere Listen bedeuten „keine Einträge gemeldet“. Der Runtime-Parser kann optionale fehlerhafte Einzelwerte auf „unavailable“ herabstufen und Warnungen anzeigen, verwirft unbekannte Felder und weist fehlerhafte Strukturen zurück. Grenzen: maximal 256 KiB Quelle, 2000 Zeichen pro Text und 100 Einträge pro Liste; Kürzungen erzeugen Warnungen.
 
+## Optionaler lokaler Pi-JSONL-Export (minimal)
+
+Der Exporter `scripts/generate-pi-status.mjs` liest **nur eine ausdrücklich ausgewählte** Pi-Sitzungsdatei (JSONL). Er sucht keine laufenden Agenten und prüft keine Live-Aktivität. Standardmäßig sind nur Dateien unter `~/.pi/agent/sessions/` zulässig; bei bewusst anders konfiguriertem Pi-Sitzungsverzeichnis `--session-root` als absoluten Pfad angeben. Die ausgewählte `.jsonl` muss ebenfalls ein absoluter Pfad zu einer regulären Datei innerhalb dieses Verzeichnisses sein. Syntax: zuerst ohne Änderung prüfen, dann ausdrücklich schreiben:
+
+```sh
+npm run status:pi -- --session "<absoluter-Pfad-zur-Sitzung.jsonl>" --dry-run
+npm run status:pi -- --session "<absoluter-Pfad-zur-Sitzung.jsonl>" --write
+npm run status:validate -- agent-status.json
+```
+
+Bei einem eigenen Session-Verzeichnis beiden Exportaufrufen `--session-root "<absolutes-Verzeichnis>"` hinzufügen. **Nur nach Freigabe der Quelle** `--write` ausführen: Es ersetzt eine bestehende `agent-status.json` nach Validierung atomar; vorher sichern, falls deren Inhalte erhalten bleiben sollen. Die Ausgabe enthält nur `dataset: "live"` (tatsächliche lokale Quelle, **kein** Beleg für einen noch laufenden Agenten), den Zeitstempel des letzten vollständig gespeicherten JSONL-Eintrags und die feste Bezeichnung „Pi-Sitzung (anonymisiert)“. Alle anderen Messungen und Listen bleiben nicht verfügbar; insbesondere werden weder Zustand/Fortschritt, Sitzungspfad/ID, Prompts, Tool-Daten, Modell, Tokens, Kosten noch bestandene Checks aus dem Log übernommen. Ein wiederholter Aufruf ist nötig, um einen neuen Snapshot zu erzeugen; auch dann ist der Zeitstempel der Quelle maßgeblich. Kein automatischer Dateiwächter oder Schreibzugang über HTTP.
+
+Ungültige/unvollständige JSONL-Dateien, unbekannte Sitzungsformate, rohe v1-Sitzungen (Pi migriert diese beim Laden), Datei-Symlinks und Quellen außerhalb des freigegebenen Verzeichnisses werden abgewiesen; Verzeichnis-Symlinks sind nur zulässig, wenn ihr aufgelöstes Ziel innerhalb der Freigabe liegt. Limit 16 MiB. Das Skript schreibt erst in eine eindeutige `.tmp`-Datei und verwendet `agent-status.lock` für **diesen** Exporter; fremde Writer müssen weiterhin koordiniert werden. Nach einem Absturz kann eine verwaiste Lock-Datei zurückbleiben: erst feststellen, dass kein Exporter mehr läuft, dann `agent-status.lock` manuell entfernen. Status, temporäre und Lock-Dateien sind ignoriert; Dateirechte auf Windows hängen zusätzlich von den lokalen ACLs ab. Nur synthetische Fixtures wurden für den Exporter getestet; keine produktive Session wurde exportiert. Ein Session-Log kann sensible Inhalte enthalten: niemals roh hochladen oder öffentlich committen.
+
 ## Herkunft, Aktualität und Nachweise
 
 Jeder optionale Skalar oder jede Werteliste ist eine Messung `{value, source, observedAt, verification}`. `verification` ist `verified`, `self_reported`, `unverified` oder `unavailable`; „verified“ bleibt **eine Quellenbehauptung**, keine externe Attestierung. Ohne gültige Herkunft wird eine vermeintlich geprüfte Messung herabgestuft. Halten Sie Quellen möglichst konkret und datensparsam. `observedAt` an der Wurzel ist die maßgebliche Quellzeit für Freshness; erfolgreiche Abrufzeit (`fetchedAt`) ist nur ein zweiter, lokaler Transportzeitstempel und erneuert die Quellzeit **nicht**. Zu alte, fehlende oder unplausibel zukünftige Quellzeit wird als veraltet/unbekannt ausgewiesen; der letzte gültige Snapshot bleibt nach Abruffehlern erhalten.
@@ -64,11 +80,11 @@ Fortschritt nur als `{completed, total, basis}` mit `total > 0`, `0 <= completed
 4. **Umgebung:** Arbeitsverzeichnis, Repository, Branch, Betriebssystem, Laufzeiten und Ausführungsmodus.
 5. **Rechte & Grenzen:** Lese-/Schreibbereiche, Netzwerk, Freigaben, Beschränkungen und fehlende Zugänge — ausschließlich gemeldete Angaben.
 6. **Kontext & Verbrauch:** Fenster, Tokens, Kosten und Limits, nur wenn tatsächlich erfasst.
-7. **Aktivität:** datierte Ereignisse mit Kategorie, Status und Herkunft.
+7. **Aktivität:** datierte Ereignisse mit Kategorie, Status und Herkunft; lokale Suche in Zusammenfassung/Kategorie sowie kombinierbare Kategorie-/Statusfilter.
 8. **Artefakte & Prüfungen:** gemeldete Dateien/Änderungen sowie getrennte Ausführungsnachweise.
 9. **Probleme & nächste Schritte:** Risiken, Blocker, Fehler und Folgeaktionen mit Quelle.
 
-Die Übersicht vor den Bereichen fasst Status, Auftrag, Probleme und beide Zeitstempel zusammen. Die Renderer-Implementierung enthält Listen, Aktivitätsfilter und Prüfnachweise für die Bereiche 7–9; die automatisierte Browserprüfung ist in `VERIFICATION.md` beschrieben. Keiner der Bereiche ist eine automatische Pi-Inspektion.
+Die Übersicht vor den Bereichen fasst Status, Auftrag, Probleme und beide Zeitstempel zusammen. Die Renderer-Implementierung enthält Listen, Aktivitätssuche/-filter und Prüfnachweise für die Bereiche 7–9; die automatisierte Browserprüfung ist in `VERIFICATION.md` beschrieben. Keiner der Bereiche ist eine automatische Pi-Inspektion.
 
 ## Atomare Updates durch einen Agenten
 
@@ -104,7 +120,7 @@ Im Projektordner ausführen: `node update-status-local.mjs <Pfad-zur-freigegeben
 
 ## Datenschutz und Vertrauensgrenzen
 
-Server: Loopback, schreibgeschützte Routen-Allowlist, `GET`/`HEAD`, Host-/Origin-/Cross-Site-Prüfung, kein CORS, restriktive CSP und keine fremden Netzwerkanfragen. Keine beliebigen Workspace-Dateien oder rohe Status-/Beispieldateien über HTTP. JSON wird serverseitig normalisiert/redigiert und vor DOM-Ausgabe erneut redigiert; das ist **keine vollständige DLP-Garantie**. Quellen, Freitext, Dateipfade, Sitzungsbezeichner, Aktivität und Check-Befehle vor dem Schreiben minimieren; niemals API-Keys, Passwörter, Cookies, Tokens, Umgebungsvariablen, private Logs oder vollständige Prompts aufnehmen. Auch lokaler Browserzugriff und lokale Dateien sind keine Geheimnisablage.
+Server: standardmäßig Loopback, LAN-Bindung nur mit expliziter privater IPv4-Adresse; schreibgeschützte Routen-Allowlist, `GET`/`HEAD`, Host-/Origin-/Cross-Site-Prüfung, kein CORS, restriktive CSP und keine fremden Netzwerkanfragen. Im LAN gibt es **keine Authentifizierung und kein TLS**: Host-/Origin-Prüfungen sind keine Zugriffskontrolle für andere LAN-Geräte. Nur in einem vertrauten Netz mit passend auf das private Netz begrenzter Firewall-Freigabe verwenden, keine Router-Portweiterleitung/Internetfreigabe aktivieren und keine Geheimnisse in Statusdaten aufnehmen. Eine private Bind-Adresse allein beweist keine Nichterreichbarkeit über falsch konfigurierte Weiterleitungen. Keine beliebigen Workspace-Dateien oder rohe Status-/Beispieldateien über HTTP. JSON wird serverseitig normalisiert/redigiert und vor DOM-Ausgabe erneut redigiert; das ist **keine vollständige DLP-Garantie**. Quellen, Freitext, Dateipfade, Sitzungsbezeichner, Aktivität und Check-Befehle vor dem Schreiben minimieren; niemals API-Keys, Passwörter, Cookies, Tokens, Umgebungsvariablen, private Logs oder vollständige Prompts aufnehmen. Auch lokaler Browserzugriff und lokale Dateien sind keine Geheimnisablage.
 
 **Store-Fehlergrenze:** Regressionstests prüfen fremde `fetchFn`-Fehler mit `Status token=DEMO_SECRET` sowie manipulierte HTTP-Status-/Content-Type-Werte direkt in `state.error`. Ein fehlgeschlagener Test gilt als Sicherheitsbefund, selbst wenn ein zusätzlicher Render-Redaktionsschritt die Anzeige absichert. Der lokale Testlauf belegt nur diese geprüften Fälle, keine umfassende DLP-Garantie.
 
@@ -115,7 +131,7 @@ Server: Loopback, schreibgeschützte Routen-Allowlist, `GET`/`HEAD`, Host-/Origi
 - HTTP 422 bei `/status.json`: Vorhandene Datei auf JSON, Version `1.0`, Struktur, Größe und Datumsangaben prüfen; `npm run status:validate -- agent-status.json`. Keine stille Rückkehr auf das Beispiel.
 - HTTP 422 bei `/config.json`: `config.json` auf Ganzzahlen und Wertebereiche prüfen; dann Seite erneut laden.
 - Altes Datum trotz erfolgreichem Abruf: `observedAt` der **Quelle** aktualisieren, nicht nur den Browser neu laden.
-- Port belegt: mit `npm start -- --port 4319` einen anderen Loopback-Port wählen; bei Zugriffsproblemen `http://127.0.0.1:<Port>/` und lokale Richtlinien prüfen.
+- Port belegt: mit `npm start -- --port 4319` einen anderen Port wählen. Bei LAN-Zugriffsproblemen die tatsächliche IPv4 des Server-Rechners, den im Startprotokoll genannten Host/Port und die lokale Firewall für das private Netz prüfen; ohne `--host` ist nur `http://127.0.0.1:<Port>/` erreichbar.
 - Fehlgeschlagener Store-Sicherheitstest: keine Secrets in Fehlertexte liefern; Store-Grenze muss unabhängig vom Renderer repariert und erneut geprüft werden (nicht als bestandenen Check ausgeben).
 
-**Explizit zurückgestellt:** Online-Anreicherung, externe APIs/Badges, Credentials-Adapter, automatische Pi-SDK-/Log-Integration, Fernsteuerung, Cloud-Speicher, Telemetrie und Multi-Agent-Flottenfunktionen. Offline-v1 liest nur die bewusst bereitgestellte lokale Statusquelle.
+**Explizit zurückgestellt:** Online-Anreicherung, externe APIs/Badges, Credentials-Adapter, automatische Pi-SDK-/Log-Integration (der manuelle, minimalistische JSONL-Exporter oben ist keine automatische Integration), Fernsteuerung, Cloud-Speicher, Telemetrie und Multi-Agent-Flottenfunktionen. Offline-v1 liest nur die bewusst bereitgestellte lokale Statusquelle.

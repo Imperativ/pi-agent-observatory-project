@@ -1,6 +1,7 @@
 node_modules/
 agent-status.json
 agent-status.*.tmp
+agent-status.lock
 .test-tmp-*/
 test-results/
 playwright-report/

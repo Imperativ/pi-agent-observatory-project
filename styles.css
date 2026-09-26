@@ -55,12 +55,12 @@ body {
 [hidden] { display: none !important; }
 a { color: var(--accent); text-underline-offset: .2em; }
 a:hover { text-decoration-thickness: .12em; }
-button, select { font: inherit; color: var(--ink); }
+button, select, input { font: inherit; color: var(--ink); }
 button {
   border: 1px solid var(--line); border-radius: .45rem; padding: .48rem .8rem;
   background: var(--surface-raised); cursor: pointer;
 }
-button:hover, select:hover { border-color: var(--accent); }
+button:hover, select:hover, input:hover { border-color: var(--accent); }
 button:active { background: var(--subtle); }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 .skip-link {
@@ -149,7 +149,7 @@ progress { display: block; width: 100%; height: .6rem; accent-color: var(--accen
 .section-note { padding-top: .5rem; border-top: 1px solid var(--line); }
 .filters { display: flex; flex-wrap: wrap; gap: .7rem; margin: .85rem 0 .3rem; }
 .filter-label { display: flex; flex: 1 1 10rem; flex-direction: column; gap: .2rem; font-size: .8rem; font-weight: 650; }
-select { width: 100%; min-height: 2.35rem; padding: .35rem; border: 1px solid var(--line); border-radius: .35rem; background: var(--surface-raised); }
+select, input[type="search"] { width: 100%; min-height: 2.35rem; padding: .35rem; border: 1px solid var(--line); border-radius: .35rem; background: var(--surface-raised); }
 .filter-count, .collection-status { margin: .5rem 0; color: var(--muted); font-size: .81rem; }
 .collection-status[data-tone="warning"] { color: var(--warning); }
 .subsection-title { font-size: 1rem; margin: .9rem 0 .3rem; }
