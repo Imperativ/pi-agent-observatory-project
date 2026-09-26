@@ -9,6 +9,7 @@ Der Magos hat die Erstellung eines aktualisierten Handoffs und die Sicherung auf
 
 ## Aktueller Implementierungsstand
 
+- **Zielplattform:** Unter Windows 11 entwickelt und für Windows 11 vorgesehen. Andere Betriebssysteme sind für diesen Stand nicht als Zielplattform abgenommen. Eine Arch-Linux-spezialisierte Version soll in einem separaten, noch anzulegenden Branch entstehen; keine Arch-Linux-Freigabe für `main` behaupten.
 - **Offline-v1 Architektur:** Versioniertes Sample/Schema, Contract-Normalisierung, Herkunftsangaben (Provenance), Redaktion vertraulicher Daten (Secrets/Credentials in CLI-Befehlen und HTTP-Status). Optionaler manueller Pi-JSONL-Exporter übernimmt ausschließlich anonymisierte Metadaten.
 - **Opt-in Pi-Live-Modus:** `pi-dashboard-extension.mjs` meldet Lebenszeichen, Pi-Lifecycle-Zustand, bekannten Anbieter/Modellfamilie (keine rohe Modell-ID), bekannte Standard-Werkzeugnamen und bei Verfügbarkeit Kontextschätzung über einen exklusiven, atomaren Writer (`scripts/live-pi-writer.mjs`). Ohne Pi-Extension bleibt die Sample-/Datei-Logik unverändert; isolierter Pi-RPC-Start/Ende erfolgreich, produktiver Agentenlauf noch nicht abgenommen.
 - **HTTP-Server:** Standardmäßig Loopback; expliziter RFC1918-IPv4-LAN-Modus per `--host` für den einzelnen Besitzer. Routing-Allowlist, Host/Origin/CSP-Schutz, redigierter Status, Sample-Fallback. LAN-Modus hat keine Anmeldung/TLS; Firewall und Router-Konfiguration sind nicht geprüft.

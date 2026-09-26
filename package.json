@@ -2,7 +2,7 @@
   "name": "pi-agent-observatory",
   "version": "1.0.0",
   "private": true,
-  "description": "Local, read-only and provenance-aware agent dashboard",
+  "description": "Windows 11-targeted local, read-only and provenance-aware agent dashboard",
   "type": "module",
   "engines": {
     "node": ">=22"

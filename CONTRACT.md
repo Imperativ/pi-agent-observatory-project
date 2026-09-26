@@ -1,6 +1,6 @@
 # Agent Observatory v1 — shared implementation contract
 
-This is the implementation contract, not an additional delivery phase. The v1 offline core remains dependency-free at runtime; a separately opt-in Pi extension may publish local live snapshots. No online data sources are part of the dashboard server.
+This is the implementation contract, not an additional delivery phase. The current dashboard was built on Windows 11 and targets Windows 11; other operating systems are not validated target platforms for this version. An Arch Linux-specific version is planned for a separate branch that has not yet been created. The v1 offline core remains dependency-free at runtime; a separately opt-in Pi extension may publish local live snapshots. No online data sources are part of the dashboard server.
 
 ## Ownership and integration
 
