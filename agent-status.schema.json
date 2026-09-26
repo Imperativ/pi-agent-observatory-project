@@ -23,6 +23,25 @@
       ],
       "description": "ISO 8601 with explicit timezone; calendar/future-skew validated by runtime."
     },
+    "live": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "source",
+        "ended"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "source": {
+          "const": "pi_extension"
+        },
+        "ended": {
+          "type": "boolean"
+        }
+      }
+    },
     "identity": {
       "type": [
         "object",

@@ -1,6 +1,6 @@
-# Agent Observatory — lokaler Offline-v1-Zwischenstand
+# Agent Observatory — lokales Dashboard mit optionaler Pi-Live-Anbindung
 
-Ein lokal oder im eigenen LAN nutzbares, nur lesendes Dashboard für **bereitgestellte** Agenten-Snapshots. Es erkennt keinen laufenden Agenten selbst und sendet keine Daten an einen Onlinedienst. Nutzung durch einen einzelnen Besitzer ist vorgesehen; der LAN-Modus hat jedoch **keine Anmeldung** und ist von anderen Geräten im gleichen Netz erreichbar. **Zwischenstand:** HTTP- und automatisierte Browsertests wurden durchgeführt; eine manuelle visuelle und vollständige Tastatur-Abnahme steht noch aus. Reproduzierbare Ergebnisse und offene Punkte stehen in `VERIFICATION.md` und `HANDOFF.md`.
+Ein lokal oder im eigenen LAN nutzbares, nur lesendes Dashboard für **bereitgestellte** Agenten-Snapshots. Ohne ausdrücklich gestartete Pi-Extension erkennt es keinen laufenden Agenten; es sendet keine Daten an einen Onlinedienst. Nutzung durch einen einzelnen Besitzer ist vorgesehen; der LAN-Modus hat jedoch **keine Anmeldung** und ist von anderen Geräten im gleichen Netz erreichbar. **Zwischenstand:** HTTP- und automatisierte Browsertests wurden durchgeführt; eine manuelle visuelle und vollständige Tastatur-Abnahme steht noch aus. Reproduzierbare Ergebnisse und offene Punkte stehen in `VERIFICATION.md` und `HANDOFF.md`.
 
 ## Start und Prüfungen
 
@@ -52,6 +52,20 @@ Eine eigene JSON-Quelle beginnt beispielsweise so (weitere Felder: `agent-status
 
 Die Uhrzeiten im Beispiel sind **nur Formatbeispiele**, keine aktuelle Messung. `schemaVersion` ist exakt `"1.0"`; `dataset` ist `sample` oder `live` und bedeutet **Quelle**, nicht unabhängige Prüfung oder Aktualität. Zeitangaben benötigen ISO-8601 mit expliziter Zeitzone. Fehlende optionale Messungen bleiben unbekannt (`value: null`, `verification: "unavailable"`), statt Modell, Rechte, Token, Kosten oder Fortschritt zu erraten. Fehlende Listen bedeuten „nicht verfügbar“; explizit leere Listen bedeuten „keine Einträge gemeldet“. Der Runtime-Parser kann optionale fehlerhafte Einzelwerte auf „unavailable“ herabstufen und Warnungen anzeigen, verwirft unbekannte Felder und weist fehlerhafte Strukturen zurück. Grenzen: maximal 256 KiB Quelle, 2000 Zeichen pro Text und 100 Einträge pro Liste; Kürzungen erzeugen Warnungen.
 
+## Pi-Agenten live beobachten (opt-in)
+
+In einem Terminal den Dashboard-Server mit `npm start` im Projektordner starten. In einem **zweiten** Terminal Pi mit der Projekt-Extension starten, beispielsweise aus dem Arbeitsverzeichnis der gewünschten Pi-Sitzung:
+
+```sh
+pi --extension "D:/imp-projekte/Pi-Dashboard/pi-dashboard-extension.mjs" --continue
+```
+
+`--continue` nur verwenden, wenn die letzte Sitzung dieses Arbeitsverzeichnisses fortgesetzt werden soll. Eine bereits laufende Pi-Instanz nicht gleichzeitig mit derselben Sitzung nochmals starten: erst regulär beenden, dann fortsetzen. Alternativ Pi ohne `--continue` mit der Extension neu starten. Die Extension wird **nur für diese Pi-Instanz** geladen; weder globale Pi-Einstellungen noch andere Prozesse werden automatisch verändert. Das Dashboard unter `http://127.0.0.1:4318/` öffnen, oder den dokumentierten privaten LAN-Host wählen. Die Pi-Instanz selbst benötigt weiterhin ihre eigene Modell-/Netzwerkverbindung; der Dashboard-Server bleibt rein lokal.
+
+Die Extension schreibt alle drei Sekunden einen validierten, atomar ersetzten `agent-status.json` mit Lebenszeichen, Agentenzustand (`in Arbeit`, `wartet`, `bereit` oder `fehlgeschlagen`), ausgewähltem Anbieter (nur fest bekannte Namen), erkannter **Modellfamilie statt roher Modell-ID**, bekannten aktiven Standard-Werkzeugnamen (kein vollständiges Custom-Tool-Inventar), Pi-Laufmodus und — sofern von Pi erfasst — Kontextfenster sowie **geschätzter** Belegung. Sie übernimmt **keine** Prompts, Tool-Argumente/-Ausgaben, rohe Modell-IDs oder benutzerdefinierte Tool-Namen, Credentials, Sitzungs-IDs, Dateipfade, Token-Gesamtsummen, Kosten oder ausgeführte Prüfnachweise. Nicht erhobene Werte bleiben „Nicht verfügbar“. Bei regulärem Pi-Ende erscheint „Pi-Sitzung beendet“; fehlt ein Lebenszeichen länger als zwölf Sekunden, zeigt das Dashboard statt eines alten Arbeitsstatus „Pi-Verbindung unterbrochen“. Das ist keine Garantie, dass ein abgestürzter Prozess korrekt beendet wurde.
+
+Es gibt nur **einen** Live-Writer je Dashboard-Statusdatei. Er hält `agent-status.lock` während der Pi-Sitzung; der manuelle JSONL-Exporter darf währenddessen nicht schreiben. Nach einem Absturz kann die Sperre verwaisen: nur wenn sicher kein Live-Writer mehr läuft, `agent-status.lock` manuell entfernen. Der aktuelle Pi-Prozess nimmt die Extension nicht rückwirkend auf; die Aktivierung muss dort erfolgen, wo die gewünschte Sitzung gestartet wird. Automatische Tests nutzen synthetische Events; zusätzlich wurde Start/Ende einer isolierten Pi-RPC-Instanz **ohne Modellanfrage** erfolgreich geprüft. Ein echter Agentenlauf in der gewünschten produktiven Sitzung steht noch aus.
+
 ## Optionaler lokaler Pi-JSONL-Export (minimal)
 
 Der Exporter `scripts/generate-pi-status.mjs` liest **nur eine ausdrücklich ausgewählte** Pi-Sitzungsdatei (JSONL). Er sucht keine laufenden Agenten und prüft keine Live-Aktivität. Standardmäßig sind nur Dateien unter `~/.pi/agent/sessions/` zulässig; bei bewusst anders konfiguriertem Pi-Sitzungsverzeichnis `--session-root` als absoluten Pfad angeben. Die ausgewählte `.jsonl` muss ebenfalls ein absoluter Pfad zu einer regulären Datei innerhalb dieses Verzeichnisses sein. Syntax: zuerst ohne Änderung prüfen, dann ausdrücklich schreiben:
@@ -88,7 +102,7 @@ Die Übersicht vor den Bereichen fasst Status, Auftrag, Probleme und beide Zeits
 
 ## Atomare Updates durch einen Agenten
 
-Es gibt keine Schreib-API. Nur ein ausdrücklich autorisierter lokaler Agent/Exporter soll einen vollständigen, datensparsamen Snapshot erzeugen. **Nie** `agent-status.json` an Ort und Stelle bearbeiten; der Server könnte einen halben JSON-Stand lesen. Bei mehreren Schreibern zusätzlich einen einzigen Writer oder eine externe Sperre vereinbaren; atomare Umbenennung allein schützt nicht vor konkurrierenden Updates.
+Es gibt keine Schreib-API. Nur ein ausdrücklich autorisierter lokaler Agent/Exporter soll einen vollständigen, datensparsamen Snapshot erzeugen. **Nie** `agent-status.json` an Ort und Stelle bearbeiten; der Server könnte einen halben JSON-Stand lesen. Die Vorlage unten prüft `agent-status.lock` **nicht**: während die Pi-Live-Extension läuft, darf sie nicht verwendet werden. Bei weiteren Schreibern zusätzlich einen einzigen Writer oder eine externe Sperre vereinbaren; atomare Umbenennung allein schützt nicht vor konkurrierenden Updates.
 
 Für einen eigenen Aktualisierer: Quelle vorbereiten, `parseStatus` aus `src/contract.mjs` aufrufen, `dataset === "live"` und `observedAt` prüfen, normalisiertes JSON in eine **eindeutige temporäre Datei im selben Projektordner** schreiben, die geschriebene Datei nochmals parsen und erst danach auf `agent-status.json` umbenennen. Schlägt eine Stufe fehl, temporäre Datei entfernen und den letzten gültigen Stand belassen. Die Vorlage unten in der Projektwurzel als **lokales, nicht mitgeliefertes** `update-status-local.mjs` speichern; nur eine vertrauenswürdige, bereits freigegebene Quelldatei übergeben. Die lokale Hilfsdatei nicht committen und nach Gebrauch entfernen.
 
@@ -134,4 +148,4 @@ Server: standardmäßig Loopback, LAN-Bindung nur mit expliziter privater IPv4-A
 - Port belegt: mit `npm start -- --port 4319` einen anderen Port wählen. Bei LAN-Zugriffsproblemen die tatsächliche IPv4 des Server-Rechners, den im Startprotokoll genannten Host/Port und die lokale Firewall für das private Netz prüfen; ohne `--host` ist nur `http://127.0.0.1:<Port>/` erreichbar.
 - Fehlgeschlagener Store-Sicherheitstest: keine Secrets in Fehlertexte liefern; Store-Grenze muss unabhängig vom Renderer repariert und erneut geprüft werden (nicht als bestandenen Check ausgeben).
 
-**Explizit zurückgestellt:** Online-Anreicherung, externe APIs/Badges, Credentials-Adapter, automatische Pi-SDK-/Log-Integration (der manuelle, minimalistische JSONL-Exporter oben ist keine automatische Integration), Fernsteuerung, Cloud-Speicher, Telemetrie und Multi-Agent-Flottenfunktionen. Offline-v1 liest nur die bewusst bereitgestellte lokale Statusquelle.
+**Explizit zurückgestellt:** Online-Anreicherung, externe APIs/Badges, Credentials-Adapter, automatische Pi-Logsuche oder Integration ohne explizit gestartete Extension, Fernsteuerung, Cloud-Speicher, externe Telemetrie und Multi-Agent-Flottenfunktionen. Der Dashboard-Server liest weiterhin nur die lokale Statusquelle.

@@ -122,6 +122,29 @@ try {
   assert.match(await page.locator('#dashboard').innerText(), /Aktualität unbekannt/);
   console.log('Browser: alte, fehlende und ungültige Quellzeit markiert.');
 
+  const live = structuredClone(updated);
+  live.dataset = 'live';
+  live.live = {source: 'pi_extension', ended: false};
+  live.observedAt = new Date().toISOString();
+  live.assignment.goal.value = 'AGENT_PROBE_LIVE_AKTIV';
+  live.assignment.state = {value: 'working', source: 'Pi-Lifecycle-Event', observedAt: live.observedAt, verification: 'self_reported'};
+  await writeFile(statusPath, JSON.stringify(live));
+  await page.getByText('AGENT_PROBE_LIVE_AKTIV').first().waitFor({timeout: 8000});
+  assert.match(await page.locator('.state-value').innerText(), /In Arbeit/);
+  live.observedAt = '2020-01-01T00:00:00Z';
+  live.assignment.goal.value = 'AGENT_PROBE_LIVE_VERLOREN';
+  await writeFile(statusPath, JSON.stringify(live));
+  await page.getByText('AGENT_PROBE_LIVE_VERLOREN').first().waitFor({timeout: 8000});
+  assert.match(await page.locator('.state-value').innerText(), /Pi-Verbindung unterbrochen/);
+  assert.match(await page.locator('#assignment').innerText(), /Status\s+Nicht verfügbar/);
+  live.live.ended = true;
+  live.observedAt = new Date().toISOString();
+  live.assignment.goal.value = 'AGENT_PROBE_LIVE_BEENDET';
+  await writeFile(statusPath, JSON.stringify(live));
+  await page.getByText('AGENT_PROBE_LIVE_BEENDET').first().waitFor({timeout: 8000});
+  assert.match(await page.locator('.state-value').innerText(), /Pi-Sitzung beendet/);
+  console.log('Browser: Pi-Lebenszeichen aktiv, veraltet und beendet korrekt unterschieden.');
+
   await page.evaluate(axe.source);
   for (const {width, height, columns} of [
     {width: 1200, height: 800, columns: 2},

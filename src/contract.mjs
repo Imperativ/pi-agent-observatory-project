@@ -137,7 +137,15 @@ export function normalizeStatus(input) {
     schemaVersion: SCHEMA_VERSION,
     dataset: ['sample', 'live'].includes(data.dataset) ? data.dataset : 'unavailable',
     observedAt: text(data.observedAt),
+    live: null,
   };
+  if (data.live !== undefined && data.live !== null) {
+    if (!isObject(data.live) || data.live.source !== 'pi_extension' || typeof data.live.ended !== 'boolean' ||
+      data.dataset !== 'live' || timestampMs(data.observedAt) === null) {
+      throw new Error('live benötigt Pi-Extension, Endestatus und gültige Quellzeit.');
+    }
+    result.live = {source: 'pi_extension', ended: data.live.ended};
+  }
   if (result.dataset === 'unavailable') warn('Herkunft des Datensatzes (sample/live) ist unbekannt.');
   for (const [section, fields] of Object.entries(FIELD_LABELS)) {
     if (data[section] != null && !isObject(data[section])) throw new Error(`${section} muss ein Objekt sein.`);

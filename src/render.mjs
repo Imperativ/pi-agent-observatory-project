@@ -440,9 +440,17 @@ function createView(root) {
         snapshot = state.snapshot ? redact(state.snapshot) : null;
       }
       const s = snapshot;
+      const live = s?.live?.source === 'pi_extension';
+      const liveAge = live ? freshness(s.observedAt, nowMs, {staleAfterMs: 12000, clockSkewMs: config?.clockSkewMs ?? 5000}) : null;
+      const liveEnded = live && s.live.ended === true;
+      const liveLost = live && !liveEnded && liveAge.state !== 'fresh';
       refreshCollections(s);
       for (const [section, sectionFields] of Object.entries(fields)) {
-        for (const [field, row] of Object.entries(sectionFields)) row.update(s?.[section]?.[field]);
+        for (const [field, row] of Object.entries(sectionFields)) {
+          const measurement = s?.[section]?.[field];
+          row.update(section === 'assignment' && field === 'state' && (liveEnded || liveLost)
+            ? {...measurement, value: null, verification: 'unavailable'} : measurement);
+        }
       }
       const runtime = uptime(s?.identity, nowMs, config || {});
       const runtimeObservation = valueOf(s?.identity?.uptimeSeconds) !== null
@@ -455,8 +463,11 @@ function createView(root) {
         : mode === 'live' ? 'LIVE-DATENSATZ · Gemeldeter Agentenstatus, keine unabhängige Verifikation'
           : 'DATENSATZTYP UNBEKANNT · Nicht als Live-Status interpretieren');
       tone(dataset, mode === 'sample' ? 'warning' : mode === 'live' ? 'info' : 'neutral');
-      badge(stateBadge, STATES[valueOf(s?.assignment?.state)] || STATES.unavailable);
-      text(stateVerification, VERIFICATION[s?.assignment?.state?.verification]?.[0] || 'Nicht verfügbar');
+      badge(stateBadge, liveEnded ? ['Pi-Sitzung beendet', 'neutral'] : liveLost ? ['Pi-Verbindung unterbrochen', 'warning']
+        : STATES[valueOf(s?.assignment?.state)] || STATES.unavailable);
+      text(stateVerification, liveEnded ? 'Extension hat das Sitzungsende gemeldet.'
+        : liveLost ? 'Lebenszeichen fehlt oder ist ungültig; letzter Zustand nicht mehr aktuell.'
+          : VERIFICATION[s?.assignment?.state?.verification]?.[0] || 'Nicht verfügbar');
       text(goal, valueOf(s?.assignment?.goal) ?? 'Ziel nicht verfügbar');
       text(step, `Schritt: ${valueOf(s?.assignment?.step) ?? 'Nicht verfügbar'}`);
       const knownIssues = s?.availability?.issues === true;
@@ -465,14 +476,14 @@ function createView(root) {
       tone(blockers, !knownIssues ? 'neutral' : critical.length ? 'danger' : 'success');
       text(blockerSummary, !knownIssues ? 'Problemliste fehlt; keine Entwarnung möglich.'
         : critical[0]?.summary || (s.issues.length ? `${s.issues.length} weitere Hinweise in der Problemliste.` : 'Keine Probleme gemeldet (leere Liste).'));
-      const fresh = freshness(s?.observedAt, nowMs, config || {});
+      const fresh = liveAge || freshness(s?.observedAt, nowMs, config || {});
       badge(freshBadge, fresh.state === 'fresh' ? ['Daten aktuell', 'success']
         : fresh.state === 'stale' ? ['Daten veraltet', 'warning'] : ['Aktualität unbekannt', 'neutral']);
       text(sourceClock, date(s?.observedAt));
       text(fetchClock, date(state.fetchedAt));
       text(age, fresh.ageMs === null ? 'Nicht verfügbar' : duration(fresh.ageMs / 1000));
-      text(freshnessReason, fresh.reason);
-      text(polling, config ? `/status.json · Abruf alle ${NUMBERS.format(config.pollIntervalMs / 1000)} s · Veraltet nach ${duration(config.staleAfterMs / 1000)} · Uhrtoleranz ${duration(config.clockSkewMs / 1000)}` : 'Statusabruf wartet auf eine gültige Konfiguration.');
+      text(freshnessReason, liveEnded ? 'Extension hat die Sitzung beendet; keine laufende Pi-Instanz bestätigt.' : fresh.reason);
+      text(polling, config ? `/status.json · Abruf alle ${NUMBERS.format(config.pollIntervalMs / 1000)} s · ${live ? 'Lebenszeichen nach 12 s veraltet' : `Veraltet nach ${duration(config.staleAfterMs / 1000)}`} · Uhrtoleranz ${duration(config.clockSkewMs / 1000)}` : 'Statusabruf wartet auf eine gültige Konfiguration.');
       text(transport, state.loading ? 'Wird abgerufen …' : state.error ? 'Abruf gestört' : s ? 'Quelle geladen' : 'Noch kein Snapshot');
       tone(transport, state.error ? 'danger' : 'neutral');
       const safeError = state.error ? redact(String(state.error)) : null;

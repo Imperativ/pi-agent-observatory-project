@@ -18,6 +18,8 @@ export function generateSchema() {
     schemaVersion: {const: SCHEMA_VERSION},
     dataset: {enum: ['sample', 'live']},
     observedAt: timestamp,
+    live: {type: ['object', 'null'], required: ['source', 'ended'], additionalProperties: true,
+      properties: {source: {const: 'pi_extension'}, ended: {type: 'boolean'}}},
   };
   for (const [section, fields] of Object.entries(FIELD_LABELS)) {
     properties[section] = {type: ['object', 'null'], additionalProperties: true, properties: {}};

@@ -1,6 +1,6 @@
 # Agent Observatory v1 — shared implementation contract
 
-This is the implementation contract, not an additional delivery phase. No online sources or Pi SDK integrations are part of v1. Keep the offline core dependency-free at runtime.
+This is the implementation contract, not an additional delivery phase. The v1 offline core remains dependency-free at runtime; a separately opt-in Pi extension may publish local live snapshots. No online data sources are part of the dashboard server.
 
 ## Ownership and integration
 
@@ -12,7 +12,8 @@ Critical path: contract → normalization/server + thin renderer → smoke → f
 
 - `schemaVersion`: exactly `"1.0"`; unsupported versions and invalid top-level types are recoverable errors.
 - `dataset`: `"sample"` or `"live"`; missing/unrecognized becomes `"unavailable"`, never silently live.
-- `observedAt`: ISO timestamp with explicit timezone or null. This is the authoritative snapshot freshness clock. Fetch success never rewrites it.
+- `observedAt`: ISO timestamp with explicit timezone or null. This is the authoritative snapshot freshness clock. Fetch success never rewrites it. Optional live-extension snapshots use it as a writer heartbeat.
+- Optional `live`: `{source: "pi_extension", ended: boolean}` only on a valid `dataset: "live"` snapshot with valid `observedAt`. Missing means no Pi-process health claim. For `live.ended=false`, a heartbeat older than 12 seconds or invalid/future must override *displayed* working/waiting status to disconnected; `ended=true` means the extension reported an orderly session shutdown, not agent task completion.
 - All optional scalar/array section values are **measurements**: `{value, source, observedAt, verification}`. Unknown values are null; verification: `verified | self_reported | unverified | unavailable`. Invalid/missing provenance downgrades verified/self_reported to unverified. No model/permission/usage guesses.
 - Sections and allowed measurement fields:
   - `identity`: `name`, `provider`, `model`, `modelVersion`, `sessionId`, `startedAt`, `uptimeSeconds`.
@@ -52,7 +53,7 @@ Critical path: contract → normalization/server + thin renderer → smoke → f
 
 `config.json`: `{pollIntervalMs:3000, staleAfterMs:120000, clockSkewMs:5000, timeoutMs:5000}` with finite bounded validation. `/status.json` serves normalized/redacted `agent-status.json` if present, otherwise explicitly labeled `agent-status.example.json`. An existing corrupt live file must NOT silently fall back to sample. `/config.json` returns only supported validated config fields. Serve no raw status/example files. No network calls besides loopback.
 
-`npm run status:init` creates ignored `agent-status.json` exclusively from sample (never overwrites). Any agent writes a complete snapshot to a unique temp file in the same folder, validates it, renames atomically; README includes precise instructions. No status update API. Missing usage stays unavailable.
+`npm run status:init` creates ignored `agent-status.json` exclusively from sample (never overwrites). Any agent writes a complete snapshot to a unique temp file in the same folder, validates it, renames atomically; README includes precise instructions. The optional Pi extension holds `agent-status.lock` throughout its session, emits allowlisted lifecycle measurements/heartbeats, and marks shutdown; manual exporter cannot write concurrently. No status update API. Missing usage stays unavailable.
 
 ## Evidence requirements
 
