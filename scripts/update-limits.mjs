@@ -62,9 +62,7 @@ try {
       dataset: 'live',
       observedAt: new Date().toISOString(),
       identity: {
-        name: {value: 'ChatGPT Account Monitor', source: 'update-limits', observedAt: new Date().toISOString(), verification: 'self_reported'},
-        provider: {value: 'OpenAI', source: 'update-limits', observedAt: new Date().toISOString(), verification: 'self_reported'},
-        model: {value: 'GPT (Modellfamilie)', source: 'update-limits', observedAt: new Date().toISOString(), verification: 'self_reported'}
+        name: {value: 'Manuell gemeldete Account-Quotas', source: 'update-limits', observedAt: new Date().toISOString(), verification: 'self_reported'}
       },
       assignment: {state: {value: 'idle', source: 'update-limits', observedAt: new Date().toISOString(), verification: 'self_reported'}},
       usage: {}
@@ -106,7 +104,7 @@ if (args['--reset']) {
   };
 }
 
-existing.observedAt = observedAt;
+// Editing a quota is not a new Pi observation. Preserve the snapshot's authoritative freshness clock.
 const content = JSON.stringify(existing, null, 2) + '\n';
 parseStatus(content);
 

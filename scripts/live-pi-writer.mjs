@@ -1,8 +1,9 @@
 import {open, lstat, readFile, rename, unlink, writeFile} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
+import {release, type} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {parseStatus} from '../src/contract.mjs';
+import {parseStatus, timestampMs} from '../src/contract.mjs';
 
 const PROJECT = fileURLToPath(new URL('../', import.meta.url));
 const SOURCE = 'Pi-Extension · beobachteter Lifecycle';
@@ -38,7 +39,7 @@ function cleanModelId(id) {
 const metric = (value, source, observedAt, verification = 'self_reported') => ({value, source, observedAt, verification});
 
 /** Construct from a strict allowlist; never accept prompts, paths, tool arguments or credentials. */
-export function createLiveSnapshot({now = new Date(), state = 'idle', ended = false, model, tools, context, mode, rateLimits} = {}) {
+export function createLiveSnapshot({now = new Date(), state = 'idle', ended = false, model, tools, context, mode, rateLimits, startedAt, assignmentStartedAt, sessionTokens, activity, workspace} = {}) {
   if (!(now instanceof Date) || !Number.isFinite(now.getTime())) throw new Error('Ungültige Lebenszeichenzeit.');
   if (!['idle', 'working', 'waiting', 'failed'].includes(state) || typeof ended !== 'boolean') throw new Error('Ungültiger Pi-Lifecycle-Zustand.');
   const observedAt = now.toISOString();
@@ -48,6 +49,18 @@ export function createLiveSnapshot({now = new Date(), state = 'idle', ended = fa
     identity: {name: metric('Pi-Agent (Live)', SOURCE, observedAt)},
     assignment: {state: metric(ended ? 'idle' : state, SOURCE, observedAt)},
   };
+  if (timestampMs(startedAt) !== null) snapshot.identity.startedAt = metric(startedAt, 'Pi · Sitzungsbeginn (ohne Sitzungs-ID)', observedAt);
+  if (timestampMs(assignmentStartedAt) !== null) snapshot.assignment.startedAt = metric(assignmentStartedAt, 'Pi · Beginn des letzten Agentenlaufs', observedAt);
+  if (Array.isArray(activity)) snapshot.activity = activity.slice(-20).flatMap((event, index) => {
+    const allowed = {
+      'Pi-Sitzung gestartet': ['info'], 'Agentenlauf gestartet': ['running'],
+      'Pi wartet auf Eingabe': ['info'], 'Agentenlauf beendet': ['info'],
+      'Agentenlauf fehlgeschlagen': ['failed'], 'Pi-Sitzung beendet': ['info'],
+    };
+    return timestampMs(event?.time) !== null && allowed[event.summary]?.includes(event.status)
+      ? [{id: `pi-lifecycle-${index}`, time: event.time, category: 'Pi-Lifecycle', summary: event.summary,
+          status: event.status, source: SOURCE, verification: 'self_reported'}] : [];
+  });
   if (model && typeof model.provider === 'string') {
     snapshot.identity.provider = metric(Object.hasOwn(PROVIDERS, model.provider) ? PROVIDERS[model.provider] : 'Anderer Anbieter', 'Pi · ausgewähltes Modell', observedAt);
   }
@@ -59,7 +72,12 @@ export function createLiveSnapshot({now = new Date(), state = 'idle', ended = fa
   if (exactModel) {
     snapshot.identity.modelVersion = metric(exactModel, 'Pi · gemeldete Modell-ID', observedAt);
   }
-  if (Array.isArray(tools)) snapshot.capabilities = {tools: metric([...new Set(tools.filter(name => TOOLS.has(name)))], 'Pi · bekannte aktivierte Werkzeuge (kein vollständiges Inventar)', observedAt)};
+  if (Array.isArray(tools)) {
+    const active = [...new Set(tools.filter(name => TOOLS.has(name)))];
+    snapshot.capabilities = {tools: metric(active, 'Pi · bekannte aktivierte Werkzeuge (kein vollständiges Inventar)', observedAt)};
+    if (active.includes('bash') || active.includes('powershell')) snapshot.capabilities.shell = metric('Pi-Shell-Werkzeug aktiv (keine Aussage über Freigaben)', SOURCE, observedAt);
+    if (active.some(name => ['read', 'edit', 'write'].includes(name))) snapshot.capabilities.files = metric('Pi-Dateiwerkzeug aktiv (keine Aussage über Freigaben)', SOURCE, observedAt);
+  }
   const window = context?.contextWindow ?? model?.contextWindow;
   if (Number.isFinite(window) && window > 0) {
     snapshot.usage = {contextWindow: metric(window, 'Pi · aktives Kontextfenster', observedAt)};
@@ -67,12 +85,28 @@ export function createLiveSnapshot({now = new Date(), state = 'idle', ended = fa
       snapshot.usage.contextUsed = metric(context.tokens, 'Pi · Kontextbelegung (Schätzung, aktive Sitzung)', observedAt, 'unverified');
     }
   }
-  if (['tui', 'rpc', 'json', 'print'].includes(mode)) {
-    snapshot.environment = {executionMode: metric(`Pi ${mode}`, 'Pi · Laufmodus', observedAt)};
+  if (sessionTokens && Number.isSafeInteger(sessionTokens.input) && sessionTokens.input >= 0 && Number.isSafeInteger(sessionTokens.output) && sessionTokens.output >= 0) {
+    snapshot.usage ??= {};
+    snapshot.usage.inputTokens = metric(sessionTokens.input, 'Pi · Eingabe-Tokens im aktiven Sitzungszweig (inkl. gemeldeter Usage-Einträge; keine Kontoquote)', observedAt);
+    snapshot.usage.outputTokens = metric(sessionTokens.output, 'Pi · Ausgabe-Tokens im aktiven Sitzungszweig (inkl. gemeldeter Usage-Einträge; keine Kontoquote)', observedAt);
   }
-  if (rateLimits) {
-    if (!snapshot.usage) snapshot.usage = {};
-    snapshot.usage.rateLimits = metric(rateLimits, 'ChatGPT / Provider Quotas', observedAt);
+  snapshot.environment = {};
+  if (['tui', 'rpc', 'json', 'print'].includes(mode)) snapshot.environment.executionMode = metric(`Pi ${mode}`, 'Pi · Laufmodus', observedAt);
+  if (type() === 'Windows_NT') {
+    const build = Number(release().split('.')[2]);
+    snapshot.environment.os = metric(Number.isInteger(build) && build >= 22000 ? 'Windows 11' : 'Windows (Version nicht eindeutig)', 'Node.js · OS-Build', observedAt);
+  }
+  snapshot.environment.runtimes = metric([`Node.js ${process.versions.node}`], 'Pi-Prozess · Node.js-Laufzeit', observedAt);
+  if (workspace && typeof workspace.cwd === 'string' && path.isAbsolute(workspace.cwd)) {
+    snapshot.environment.cwd = metric(workspace.cwd, 'Pi · freigegebenes Arbeitsverzeichnis', observedAt);
+    if (typeof workspace.repository === 'string' && path.isAbsolute(workspace.repository))
+      snapshot.environment.repository = metric(workspace.repository, 'Git · freigegebene lokale Repository-Wurzel (keine Remote-URL)', observedAt);
+    if (typeof workspace.branch === 'string' && workspace.branch.length <= 200)
+      snapshot.environment.branch = metric(workspace.branch, 'Git · freigegebener Branchname', observedAt);
+  }
+  if (rateLimits?.value && timestampMs(rateLimits.observedAt) !== null) {
+    snapshot.usage ??= {};
+    snapshot.usage.rateLimits = metric(rateLimits.value, rateLimits.source, rateLimits.observedAt);
   }
   parseStatus(JSON.stringify(snapshot));
   return snapshot;

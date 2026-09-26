@@ -15,6 +15,10 @@ Stand: nach Wiederaufnahme des Handoffs; diese Datei hält **tatsächlich ausgef
 
 Ein kontrollierter Test mit `fetchFn`-Fehler `Status token=DEMO_SECRET` bestätigte außerdem, dass der fremde Text nicht in `state.error` erscheint. Der unabhängige Read-only-Review fand anschließend eine andere Lücke: `--access-token DEMO_SECRET_VALUE` in `checks[].evidence.command` wurde unredigiert übertragen; außerdem formatierte die UI `2025-02-30` trotz unbekannter Aktualität als März-Datum. Beide Befunde wurden reproduziert, korrigiert und mit Contract-/Browserchecks erneut geprüft. Eingehende Statuswerte werden am Server- und DOM-Rand redigiert; das ist weiterhin keine vollständige DLP-Attestierung.
 
+## Ergänzende lokale Prüfung: datensparsame Live-Felder
+
+Nach der Ergänzung um Sitzungs-/Agentenstart, feste Lifecycle-Ereignisse, aktive Shell-/Dateiwerkzeuge, Node-/Windows-Build und Pi-Token-Zähler wurden `npm test` (**90 bestanden, 0 fehlgeschlagen**; inkl. 6 Browser-Quota-Sync-Tests), `npm run check`, `npm run schema:check`, `npm run smoke`, `npm run test:browser` sowie `git diff --check` erfolgreich ausgeführt. Neue Unit-Tests prüfen erlaubte Labels, numerische Zähler ohne Prompt-/Secret-Ausgabe, opt-in lokale Git-Metadaten ohne Remote-Abfrage und die getrennten Quellzeiten bei manueller Quota-Aktualisierung. Diese Tests nutzen synthetische Pi-Daten; eine produktive Windows-11-Pi-Sitzung mit echtem Modellaufruf und eine echte Anbieter-Quota-Abfrage wurden dabei **nicht** geprüft. Die obige historische Tabelle gibt den vorherigen Lauf wieder.
+
 ## Abdeckung und Grenzen
 
 - Der Browserlauf prüft semantische Interaktion und ausgewählte axe-Regeln automatisch; **keine** vollständige manuelle Tastatur-/Screenreader-/visuelle Kontrastprüfung an echten Geräten oder weiteren Browsern. Dark/Light wurde durch Umschalten und Farbvergleich geprüft; axe lief zusätzlich im Dunkelmodus bei 1200px. Reduced-Motion-Prüfung deckt die CSS-Scrollregel ab, keine vollständige Animation-/Assistive-Technology-Abnahme.

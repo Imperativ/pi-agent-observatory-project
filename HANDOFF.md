@@ -11,16 +11,16 @@ Der Magos hat die Erstellung eines aktualisierten Handoffs und die Sicherung auf
 
 - **Zielplattform:** Unter Windows 11 entwickelt und für Windows 11 vorgesehen. Andere Betriebssysteme sind für diesen Stand nicht als Zielplattform abgenommen. Eine Arch-Linux-spezialisierte Version soll in einem separaten, noch anzulegenden Branch entstehen; keine Arch-Linux-Freigabe für `main` behaupten.
 - **Offline-v1 Architektur:** Versioniertes Sample/Schema, Contract-Normalisierung, Herkunftsangaben (Provenance), Redaktion vertraulicher Daten (Secrets/Credentials in CLI-Befehlen und HTTP-Status). Optionaler manueller Pi-JSONL-Exporter übernimmt ausschließlich anonymisierte Metadaten.
-- **Opt-in Pi-Live-Modus:** `pi-dashboard-extension.mjs` meldet Lebenszeichen, Pi-Lifecycle-Zustand, bekannten Anbieter/Modellfamilie (keine rohe Modell-ID), bekannte Standard-Werkzeugnamen und bei Verfügbarkeit Kontextschätzung über einen exklusiven, atomaren Writer (`scripts/live-pi-writer.mjs`). Ohne Pi-Extension bleibt die Sample-/Datei-Logik unverändert; isolierter Pi-RPC-Start/Ende erfolgreich, produktiver Agentenlauf noch nicht abgenommen.
+- **Opt-in Pi-Live-Modus:** `pi-dashboard-extension.mjs` meldet Lebenszeichen, Pi-Lifecycle-Zustand, bekannten Anbieter/Modellfamilie (keine rohe Modell-ID), bekannte Standard-Werkzeugnamen und bei Verfügbarkeit Kontextschätzung über einen exklusiven, atomaren Writer (`scripts/live-pi-writer.mjs`). Zusätzlich: gültiger Pi-Sitzungs-/Agentenlaufstart, feste Lifecycle-Ereignisse, numerische Token-Summen aus dem aktiven Zweig, aktive Shell-/Dateiwerkzeuge und lokale Node-/Windows-Build-Angaben. Arbeitsverzeichnis und lokales Git-Repository/Branch nur mit `PI_DASHBOARD_INCLUDE_WORKSPACE=1` veröffentlichen (LAN ist ohne Anmeldung). Keine Prompts, Sitzungspfade/-IDs, Berechtigungsannahmen oder Kontoquoten aus diesen Messungen ableiten. Manuelle Quota-Zeit bleibt über Heartbeats erhalten. Ohne Pi-Extension bleibt die Sample-/Datei-Logik unverändert; isolierter Pi-RPC-Start/Ende erfolgreich, produktiver Agentenlauf noch nicht abgenommen.
 - **HTTP-Server:** Standardmäßig Loopback; expliziter RFC1918-IPv4-LAN-Modus per `--host` für den einzelnen Besitzer. Routing-Allowlist, Host/Origin/CSP-Schutz, redigierter Status, Sample-Fallback. LAN-Modus hat keine Anmeldung/TLS; Firewall und Router-Konfiguration sind nicht geprüft.
 - **Store & Refresh:** Polling, Timeout-Handling, Retention des letzten validen Snapshots bei Fehler.
 - **UI (HTML/CSS/JS):** 9 Abschnitte, zentraler Status, Hell/Dunkel-Theme, A11y-Grundgerüst (WCAG A/AA via axe-core in Playwright verifiziert). Modell & Anbieter prominent auf den ersten Blick im Kopfbereich und in der Übersichtskachel; grafische Quota-Meters für ChatGPT/OpenAI-Limits (5h- und Weekly-Limit).
-- **Dokumentation & Verträge:** `CONTRACT.md`, `README.md`, `VERIFICATION.md`, `HANDOFF.md` vollständig gepflegt.
+- **Dokumentation & Verträge:** `CONTRACT.md`, `README.md`, `VERIFICATION.md`, `HANDOFF.md` und `TELEMETRY.md`; letztere trennt Sitzungsnutzung von Account-/API-Quoten und beschreibt nur geplante, nicht implementierte externe Adapter.
 
 ## Bestätigte Prüfungen (in der aktuellen Sitzung re-validiert)
 
 - `npm run check`: Syntax-Check von 23 JS-Dateien erfolgreich.
-- `npm test`: **87 von 87 Tests bestanden** (Contract-, Quota-, Browser-Quota-Sync-, Live-/Exporter-, Server- und Store-Suite).
+- `npm test`: **90 von 90 Tests bestanden** (59 Contract, 6 Browser-Quota-Sync, 8 Live-Tests, 5 Exporter, 5 HTTP/Server und 7 Store).
 - `npm run schema:check`: Ajv-Schema-Kompilierung und Negativtest-Suite erfolgreich.
 - `npm run status:validate`: Sample-JSON ist schema-konform.
 - `npm run smoke`: Standard-Loopback-Serverstart über `npm start -- --port 0` mit Allowlist- & Routing-Regeln verifiziert; LAN-Host/Origin separat mit simulierten HTTP-Anfragen geprüft, keine Abnahme über ein zweites Gerät.
