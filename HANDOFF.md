@@ -1,70 +1,74 @@
-# Übergabe / Zwischenstand — Pi Agent Observatory
+# Übergabe / bewusste Pause — Pi Agent Observatory
 
 ## Auftrag, Autorisierung und Speicherort
 
-Der Magos hat die Erstellung eines aktualisierten Handoffs und die Sicherung auf GitHub im neuen Branch `antiG-work` angeordnet, um die Arbeiten nahtlos fortzusetzen.
-- **Projektverzeichnis:** `/home/imp/Dokumente/imp-projekte/pi-dashboard` (CachyOS Linux)
-- **Git Remote:** `origin` -> `https://github.com/Imperativ/pi-agent-observatory-project.git`
-- **Aktiver Entwicklungsbranch:** `antiG-work` (abgeleitet von `CachyOS`)
-- **Regel:** Vor jedem Push `origin` prüfen. Jeder geprüfte Meilenstein wird sauber committet und gepusht.
+Der Magos hat die Erstellung eines aktualisierten Handoffs und die Sicherung auf GitHub angeordnet, um die Sitzung zu einem späteren Zeitpunkt nahtlos fortzusetzen.
+- **Projektverzeichnis:** `D:/imp-projekte/Pi-Dashboard`
+- **Git Remote:** `origin` -> `https://github.com/Imperativ/pi-agent-observatory-project.git` (Branch `main`)
+- **Regel:** Vor jedem Push `origin` prüfen. Jeder geprüfte Projektpunkt wird separat committet und gepusht.
 
 ## Aktueller Implementierungsstand
 
-- **Offline-v1 Kernarchitektur:** Versioniertes Sample/Schema, Contract-Normalisierung, Herkunftsangaben (Provenance), strikte Redaktion vertraulicher Daten (Secrets/Credentials in CLI-Befehlen und HTTP-Status). Keine externen Laufzeitabhängigkeiten im Server/Frontend.
-- **Direct Fast-Sync Quota-Adapter (`scripts/browser-quota-sync.mjs`):**
-  - **OpenAI (ChatGPT Plus / Codex Backend):** Fragt in ~200 ms direkt `https://chatgpt.com/backend-api/wham/usage` über die vorhandene OAuth-Sitzung aus `~/.pi/agent/auth.json` ab (`openai-codex`). Liefert 5h-Fenster (18000 s), Wochenlimit (604800 s) und verbleibende Bonus-Credits.
-  - **Google (Gemini & Antigravity):** Fragt in ~250 ms direkt `https://cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels` ab und extrahiert `remainingFraction` sowie den ISO-Reset-Zeitpunkt.
-  - **Automatische Token-Erneuerung:** Erkennt abgelaufene Tokens und erneuert sie bei Bedarf automatisch über den Google OAuth Token Endpoint bzw. Pi Bearer CLI.
-  - **Ausfallsicherheit / Fallback:** `runSync()` nutzt standardmäßig zuerst die schnelle Direkt-API. Falls keine lokalen OAuth-Tokens vorliegen, erfolgt ein nahtloser Fallback auf den Playwright Chromium Browser-Scraper.
-  - **CLI-Steuerung:** `npm run quota:sync` (bevorzugt Direktsync mit Browser-Fallback), `npm run quota:direct` (erzwingt direkten API-Abruf) oder `node scripts/browser-quota-sync.mjs sync [openai|google|auto] [--direct|--browser] [--json]`.
-- **Opt-in Pi-Live-Modus (`pi-dashboard-extension.mjs`):**
-  - Meldet Lebenszeichen, Lifecycle-Zustände, Modell-/Provider-Metadaten und Kontext-Auslastung via atomarem Writer (`scripts/live-pi-writer.mjs`).
-  - `/limits`-Befehl in Pi integriert; `/limits sync` nutzt den neuen schnellen Direkt-Sync.
-  - **Passive Rate-Limit-Erfassung:** Hook an `after_provider_response` extrahiert Rate-Limit-Header (Anthropic, OpenAI, IETF-Draft) in Echtzeit und aktualisiert die Kontingente im Dashboard.
-  - **Automatischer Quota-Sync:** Periodischer Abgleich im Hintergrund (alle 5 Min.) sowie automatischer Sync bei `agent_settled` / `agent_end` mit Cooldown.
-- **Timeline & Interaktive Filter (`src/render.mjs`, `styles.css`):**
-  - **Visuelle Timeline:** Verbundene Schiene mit statusabhängigen Indikator-Punkten (blau für *working*, gelb für *waiting*, rot für *failed*, grün für *completed*).
-  - **Sortieroption:** Umschaltbar zwischen *Neueste zuerst* (Standard) und *Älteste zuerst* (Chronologischer Ablauf).
-  - **Schnellaktionen:** "Alle aufklappen" / "Alle zuklappen" und "Filter zurücksetzen" (wird dynamisch eingeblendet, sobald Filter aktiv sind).
-  - **Relative Zeitanzeige:** Berechnung von relativen Zeiten ("gerade eben", "vor X Min./Std.") zusätzlich zum formatierten absoluten Zeitstempel.
-- **Anonymisierter Diagnose-Export (`src/export.mjs`, `scripts/export-diagnostics.mjs`):**
-  - **Datenschutz & Geheimnisschutz:** Vollständige Filterung aller sensiblen Tokens, Passwörter, Bearer-Header und API-Keys via `redact()`.
-  - **Pfadanonymisierung:** Automatische Maskierung systemspezifischer Benutzerpfade (`/home/<user>`, `C:\Users\<user>`).
-  - **UI-Download:** Ein Klick auf "Diagnose-Export" im Header lädt einen formatierten Snapshot als JSON herunter.
-  - **CLI-Werkzeug:** `npm run export:diagnostics` oder `npm run export:stdout` für Terminal-Export.
-- **HTTP-Server (`server.mjs`):**
-  - Standardmäßig Loopback auf `127.0.0.1:3000` (Port ist frei).
-  - RFC1918-LAN-Modus nur opt-in via `--host`.
-  - Strikte CSP, Origin- und Routing-Allowlist (inkl. `/src/export.mjs`).
-- **UI (HTML/CSS/JS):**
-  - 9 Abschnitte, zentraler Status, Hell/Dunkel-Theme, barrierefrei nach WCAG A/AA (axe-core verifiziert).
-  - Grafische Quota-Balken für 5h- und Wochen-Limits für ChatGPT und Gemini.
+- **Offline-v1 Architektur:** Versioniertes Sample/Schema, Contract-Normalisierung, Herkunftsangaben (Provenance), Redaktion vertraulicher Daten (Secrets/Credentials in CLI-Befehlen und HTTP-Status). Optionaler manueller Pi-JSONL-Exporter übernimmt ausschließlich anonymisierte Metadaten.
+- **Opt-in Pi-Live-Modus:** `pi-dashboard-extension.mjs` meldet Lebenszeichen, Pi-Lifecycle-Zustand, bekannten Anbieter/Modellfamilie (keine rohe Modell-ID), bekannte Standard-Werkzeugnamen und bei Verfügbarkeit Kontextschätzung über einen exklusiven, atomaren Writer (`scripts/live-pi-writer.mjs`). Ohne Pi-Extension bleibt die Sample-/Datei-Logik unverändert; isolierter Pi-RPC-Start/Ende erfolgreich, produktiver Agentenlauf noch nicht abgenommen.
+- **HTTP-Server:** Standardmäßig Loopback; expliziter RFC1918-IPv4-LAN-Modus per `--host` für den einzelnen Besitzer. Routing-Allowlist, Host/Origin/CSP-Schutz, redigierter Status, Sample-Fallback. LAN-Modus hat keine Anmeldung/TLS; Firewall und Router-Konfiguration sind nicht geprüft.
+- **Store & Refresh:** Polling, Timeout-Handling, Retention des letzten validen Snapshots bei Fehler.
+- **UI (HTML/CSS/JS):** 9 Abschnitte, zentraler Status, Hell/Dunkel-Theme, A11y-Grundgerüst (WCAG A/AA via axe-core in Playwright verifiziert). Modell & Anbieter prominent auf den ersten Blick im Kopfbereich und in der Übersichtskachel; grafische Quota-Meters für ChatGPT/OpenAI-Limits (5h- und Weekly-Limit).
+- **Dokumentation & Verträge:** `CONTRACT.md`, `README.md`, `VERIFICATION.md`, `HANDOFF.md` vollständig gepflegt.
 
-## Bestätigte Prüfungen (in dieser Sitzung verifiziert)
+## Bestätigte Prüfungen (in der aktuellen Sitzung re-validiert)
 
-- `npm run check`: Syntax-Check von **26 JS-Dateien** erfolgreich; DOM-Senken-Guard und Schemakonformität bestätigt.
-- `npm test`: **94 von 94 Tests bestanden** (inklusive neuer Testsuites für Diagnose-Export, Header-Parsing und Live-Lifecycle-Hooks).
-- `npm run schema:check`: Ajv-Schema-Kompilierung im Strict-Modus und Negativtests bestanden.
+- `npm run check`: Syntax-Check von 23 JS-Dateien erfolgreich.
+- `npm test`: **87 von 87 Tests bestanden** (Contract-, Quota-, Browser-Quota-Sync-, Live-/Exporter-, Server- und Store-Suite).
+- `npm run schema:check`: Ajv-Schema-Kompilierung und Negativtest-Suite erfolgreich.
 - `npm run status:validate`: Sample-JSON ist schema-konform.
-- `npm run smoke`: Serverstart mit Loopback, Routing-Allowlist (inkl. `/src/export.mjs`) und Origin-Blockierung verifiziert.
-- `npm run test:browser`: Playwright E2E-Lauf (Chromium) inklusive Accessibility (axe WCAG A/AA), Key-Redaktions-Checks, Live-Lebenszeichen, Timeline-Steuerung, Filter-Reset und Diagnose-Download bei allen Breakpoints (1200/768/390px) bestanden.
-- **Live-Endpunktprüfung:** Direkter Abruf von OpenAI- und Google-Quotas mit echten Tokens im Terminal erfolgreich getestet und in `agent-status.json` geschrieben.
+- `npm run smoke`: Standard-Loopback-Serverstart über `npm start -- --port 0` mit Allowlist- & Routing-Regeln verifiziert; LAN-Host/Origin separat mit simulierten HTTP-Anfragen geprüft, keine Abnahme über ein zweites Gerät.
+- `npm run test:browser`: Playwright E2E-Lauf (Chromium) inklusive Accessibility (axe WCAG A/AA), Key-Redaktions-Checks, Live-Lebenszeichen (aktiv/veraltet/beendet), Modell-auf-den-ersten-Blick, grafischer ChatGPT-Limits, Layout-/A11y-Prüfungen bei 1200/768/390px, Dunkelmodus und `prefers-reduced-motion` erfolgreich. Manuelle Abnahme bleibt offen.
+- `git status`: Vor Commit/Push den aktuellen Arbeitsbaum erneut prüfen; die letzte Baseline war `98a56f7` auf `main`.
 
-## Strategischer Fahrplan / Nächste Schritte
+## Strategischer Fahrplan für die Wiederaufnahme (Nächste Phasen)
 
-1. **Optionale Pi-Dashboard Features:**
-   - Visualisierung von Token-Trends im Zeitverlauf bei längeren Sitzungen.
-   - Optionale Benachrichtigungstöne oder Desktop-Notifications bei `failed`-Status.
-2. **Paketierung:**
-   - Vorbereitung eines systemd-User-Services für automatischen Hintergrundstart des Observatoriums auf CachyOS.
+### Phase 1: Härtung & Live-Daten-Adapter (v1 Finalisierung)
+1. **Multi-Device & A11y Härtung:**
+   - Automatisierte Prüfungen für `prefers-reduced-motion` und 1200/768/390px in `scripts/browser-check.mjs` ergänzt und bestanden.
+   - **Offen:** Manuelle Screenreader-, Tastatur- und visuelle Abnahme an realen Geräten.
+2. **Minimaler Pi-Status-Generator (`scripts/generate-pi-status.mjs`):**
+   - Implementiert: explizite JSONL-Auswahl, begrenztes Lesen, Whitelist-Metadaten, `--dry-run`/`--write`, atomarer Schreibpfad und synthetische Regressionstests.
+   - **Offen:** kontrollierte Abnahme mit einer ausdrücklich durch `--extension` gestarteten echten Pi-Instanz sowie einem zweiten LAN-Gerät. Aktive Pi-Erkennung erfolgt nur für diese Instanz, keine automatische Sitzungssuche; weitere Live-Werte erst nach eigener Herkunftsprüfung.
+
+### Phase 2: Feature-Erweiterungen (v1.1 / v2)
+3. **Interaktive Activity-Timeline & Filter:**
+   - Status- und Kategorie-Filter sowie Suche in Zusammenfassung/Kategorie im UI vorhanden und im Browsertest geprüft.
+   - **Offen:** weitergehende Timeline-Interaktion nach konkreter Spezifikation.
+4. **Anonymisierter Snapshot-Export:**
+   - **Offen:** Export-Schaltfläche `("Snapshot anonymisiert herunterladen")` für Diagnose-Zwecke; Datenschutzgrenzen und ausdrückliche Freigabe vor Einführung klären.
+
+---
+
+## Empfohlene Sub-Agenten-Aufteilung für die Wiederaufnahme
+
+Für die Fortführung der Arbeiten stehen folgende spezialisierte Sub-Agenten bereit:
+
+1. **`Agent Alpha` (UI & Accessibility):**
+   - *Fokus:* `index.html`, `styles.css`, `scripts/browser-check.mjs`.
+   - *Aufgabe:* A11y-Schärfung, Viewport-Matrix, `prefers-reduced-motion`.
+2. **`Agent Beta` (Live-Data Adapter):**
+   - *Fokus:* `scripts/generate-pi-status.mjs`, `agent-status.schema.json`.
+   - *Aufgabe:* Lokaler Log-Parser für anonymisierte Pi-Session-Snapshots.
+3. **`Agent Gamma` (Security & Redaction Auditor):**
+   - *Fokus:* `server.mjs`, `app.mjs`, `test/contract.test.mjs`.
+   - *Aufgabe:* Adversarial Fuzzing & Redaktions-Engine-Prüfung.
+4. **`Agent Delta` (Timeline & Analytics):**
+   - *Fokus:* `app.mjs`, `index.html`, `styles.css`.
+   - *Aufgabe:* Activity-Timeline, Filter-System und Snapshot-Export.
 
 ---
 
 ## Anweisung zur Wiederaufnahme
 
 Bei Start einer neuen Sitzung:
-1. Verzeichnis betreten: `cd /home/imp/Dokumente/imp-projekte/pi-dashboard`
-2. Git-Status und Branch prüfen: `git status --short --branch && git branch --show-current` (muss auf `antiG-work` sein)
-3. Handoff lesen: `cat HANDOFF.md`
+1. Verzeichnis betreten: `cd D:/imp-projekte/Pi-Dashboard`
+2. Git-Status und Remote verifizieren: `git status --short --branch && git remote get-url origin`
+3. Handoff lesen: `read HANDOFF.md`
 4. Test-Suite ausführen: `npm test && npm run check && npm run schema:check && npm run smoke && npm run test:browser`
-5. Quota-Status prüfen/aktualisieren: `npm run quota:direct` oder `npm run quota:sync`
+5. Die Arbeit anhand des oben stehenden Sub-Agenten-Fahrplans fortsetzen.

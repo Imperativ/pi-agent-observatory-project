@@ -9,8 +9,6 @@ import {
   parseRelativeReset,
   parseOpenAIUsageText,
   parseGoogleUsageText,
-  parseDirectOpenAIQuota,
-  parseDirectGoogleQuota,
   saveRateLimitsToStatus,
 } from '../scripts/browser-quota-sync.mjs';
 
@@ -82,64 +80,6 @@ test('parseGoogleUsageText extracts Gemini usage and reset time', () => {
   assert.ok(result.fiveHour.resetsAt);
   assert.equal(result.weekly.remainingPercent, 65);
   assert.equal(result.detail, 'Google Gemini Quota (Browser-Sync)');
-});
-
-test('parseDirectOpenAIQuota transforms raw API response to structured limits', () => {
-  const rawApiData = {
-    plan_type: 'plus',
-    rate_limit: {
-      allowed: false,
-      limit_reached: true,
-      primary_window: {
-        used_percent: 100,
-        limit_window_seconds: 18000,
-        reset_after_seconds: 1804,
-        reset_at: 1790397823,
-      },
-      secondary_window: {
-        used_percent: 33,
-        limit_window_seconds: 604800,
-        reset_after_seconds: 283680,
-        reset_at: 1790679699,
-      },
-    },
-    rate_limit_reset_credits: {
-      available_count: 3,
-    },
-  };
-
-  const parsed = parseDirectOpenAIQuota(rawApiData);
-  assert.ok(parsed);
-  assert.equal(parsed.fiveHour.remainingPercent, 0);
-  assert.equal(parsed.fiveHour.resetsAt, new Date(1790397823 * 1000).toISOString());
-  assert.equal(parsed.weekly.remainingPercent, 67);
-  assert.equal(parsed.weekly.resetsAt, new Date(1790679699 * 1000).toISOString());
-  assert.match(parsed.detail, /PLUS/i);
-  assert.match(parsed.detail, /3 Resets/i);
-});
-
-test('parseDirectGoogleQuota extracts Gemini and Claude model quotas correctly', () => {
-  const rawGoogleData = {
-    models: {
-      'gemini-2.5-pro': {
-        quotaInfo: { remainingFraction: 0.3790544, resetTime: '2026-09-26T05:30:30Z' },
-      },
-      'gemini-3.1-pro-high': {
-        quotaInfo: { remainingFraction: 0.3790544, resetTime: '2026-09-26T05:30:30Z' },
-      },
-      'claude-sonnet-4-6': {
-        quotaInfo: { remainingFraction: 1, resetTime: '2026-09-26T09:13:29Z' },
-      },
-    },
-  };
-
-  const parsed = parseDirectGoogleQuota(rawGoogleData);
-  assert.ok(parsed);
-  assert.equal(parsed.fiveHour.remainingPercent, 38);
-  assert.equal(parsed.fiveHour.resetsAt, '2026-09-26T05:30:30Z');
-  assert.equal(parsed.weekly.remainingPercent, 100);
-  assert.equal(parsed.weekly.resetsAt, '2026-09-26T09:13:29Z');
-  assert.match(parsed.detail, /Google/i);
 });
 
 test('saveRateLimitsToStatus updates status file atomically and conforms to contract', async () => {

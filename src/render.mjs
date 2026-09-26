@@ -323,7 +323,6 @@ function createView(root) {
   controls.append(searchLabel);
   const categoryFilter = filterControl('activity-category', 'Kategorie');
   const statusFilter = filterControl('activity-status', 'Status');
-  const sortFilter = filterControl('activity-sort', 'Reihenfolge');
   function option(value, label) {
     const node = el('option', '', label);
     node.value = value;
@@ -332,24 +331,9 @@ function createView(root) {
   categoryFilter.append(option('', 'Alle Kategorien'));
   statusFilter.append(option('', 'Alle Status'));
   for (const [key, pair] of Object.entries(ACTIVITY_STATES)) statusFilter.append(option(key, pair[0]));
-  sortFilter.append(option('desc', 'Neueste zuerst (Standard)'));
-  sortFilter.append(option('asc', 'Älteste zuerst (Chronologisch)'));
-
-  const actionsBar = el('div', 'filter-actions');
-  const toggleAllBtn = el('button', 'filter-btn', 'Alle aufklappen');
-  toggleAllBtn.type = 'button';
-  toggleAllBtn.id = 'activity-toggle-all';
-
-  const resetFiltersBtn = el('button', 'filter-btn', 'Filter zurücksetzen');
-  resetFiltersBtn.type = 'button';
-  resetFiltersBtn.id = 'activity-reset-filters';
-  resetFiltersBtn.hidden = true;
-
-  actionsBar.append(toggleAllBtn, resetFiltersBtn);
   const resultCount = el('p', 'filter-count');
   resultCount.setAttribute('aria-live', 'polite');
   sections.activity.insertBefore(controls, activity.availability);
-  sections.activity.insertBefore(actionsBar, activity.availability);
   sections.activity.insertBefore(resultCount, activity.list);
   const artifacts = collection(sections.artifacts, 'Artefakte');
   const checks = collection(sections.artifacts, 'Prüfungen');
@@ -359,27 +343,9 @@ function createView(root) {
   sections.artifacts.insertBefore(checkTitle, checks.availability);
   const issues = collection(sections.issues, 'Probleme und nächste Schritte');
 
-  function relativeTime(isoString, nowMs) {
-    const time = Date.parse(isoString);
-    if (!Number.isFinite(time) || !Number.isFinite(nowMs)) return null;
-    const diffSec = Math.round((nowMs - time) / 1000);
-    if (diffSec < 0 && Math.abs(diffSec) > 5) return 'in der Zukunft';
-    if (diffSec < 45) return 'gerade eben';
-    const diffMin = Math.round(diffSec / 60);
-    if (diffMin < 60) return `vor ${diffMin} Min.`;
-    const diffHours = Math.round(diffMin / 60);
-    if (diffHours < 24) return `vor ${diffHours} Std.`;
-    const diffDays = Math.round(diffHours / 24);
-    return `vor ${diffDays} Tg.`;
-  }
-
-  let currentRenderedSnapshot = null;
-  let currentNowMs = Date.now();
   let renderedCollection = null;
   const openActivityKeys = new Set();
-  function renderActivity(s, nowMs = currentNowMs) {
-    currentRenderedSnapshot = s;
-    currentNowMs = nowMs;
+  function renderActivity(s) {
     const source = s?.activity || [];
     const query = searchFilter.value.trim().toLocaleLowerCase('de');
     const filtered = source.filter(item => (!categoryFilter.value || item.category === categoryFilter.value)
@@ -390,44 +356,25 @@ function createView(root) {
     for (const node of activity.list.querySelectorAll('details[open]')) openActivityKeys.add(node.dataset.entryKey);
     const active = doc.activeElement;
     const focusedKey = activity.list.contains(active) ? active.closest('details')?.dataset.entryKey : null;
-
-    const isAsc = sortFilter.value === 'asc';
     const ordered = source.map((item, index) => ({item, key: `${item.id}:${item.time}:${index}`}))
-      .sort((a, b) => isAsc ? (Date.parse(a.item.time) - Date.parse(b.item.time)) : (Date.parse(b.item.time) - Date.parse(a.item.time)));
-
-    const isFiltered = Boolean(searchFilter.value || categoryFilter.value || statusFilter.value || sortFilter.value === 'asc');
-    resetFiltersBtn.hidden = !isFiltered;
-
+      .sort((a, b) => Date.parse(b.item.time) - Date.parse(a.item.time));
     const currentKeys = new Set(ordered.map(entry => entry.key));
     for (const key of openActivityKeys) if (!currentKeys.has(key)) openActivityKeys.delete(key);
     const fragment = doc.createDocumentFragment();
-    activity.list.className = 'entry-list timeline-list';
     for (const {item, key} of ordered) {
       if (!filtered.includes(item)) continue;
-      const li = el('li', 'entry timeline-entry');
-      const marker = el('span', 'timeline-marker');
-      marker.dataset.status = item.status || 'unknown';
-      marker.setAttribute('aria-hidden', 'true');
+      const li = el('li', 'entry');
       const detail = el('details', 'activity-detail');
       detail.dataset.entryKey = key;
       detail.open = openActivityKeys.has(key);
       detail.addEventListener('toggle', () => {
         if (detail.open) openActivityKeys.add(key);
         else openActivityKeys.delete(key);
-        const details = activity.list.querySelectorAll('details.activity-detail');
-        const allOpen = details.length > 0 && [...details].every(d => d.open);
-        toggleAllBtn.textContent = allOpen ? 'Alle zuklappen' : 'Alle aufklappen';
       });
       const summary = el('summary', 'entry-heading');
       const time = el('time', 'entry-time', date(item.time));
       time.dateTime = item.time;
-      summary.append(time);
-      const rel = relativeTime(item.time, nowMs);
-      if (rel) {
-        const relTime = el('span', 'entry-rel-time', `(${rel})`);
-        summary.append(relTime);
-      }
-      summary.append(el('span', 'entry-category', item.category));
+      summary.append(time, el('span', 'entry-category', item.category));
       const state = el('span', 'badge');
       badge(state, ACTIVITY_STATES[item.status] || ACTIVITY_STATES.unknown);
       summary.append(state, el('span', 'entry-summary', item.summary));
@@ -435,45 +382,16 @@ function createView(root) {
       fieldLine(body, 'Dauer', item.durationMs === null ? 'Nicht verfügbar' : `${NUMBERS.format(item.durationMs)} ms`);
       evidence(body, item, item.time);
       detail.append(summary, body);
-      li.append(marker, detail);
+      li.append(detail);
       fragment.append(li);
     }
     activity.list.replaceChildren(fragment);
-
-    const visibleDetails = activity.list.querySelectorAll('details.activity-detail');
-    const allOpen = visibleDetails.length > 0 && [...visibleDetails].every(d => d.open);
-    toggleAllBtn.textContent = allOpen ? 'Alle zuklappen' : 'Alle aufklappen';
-
     if (focusedKey) {
       const replacement = [...activity.list.querySelectorAll('details')].find(node => node.dataset.entryKey === focusedKey);
       if (replacement) replacement.querySelector('summary')?.focus({preventScroll: true});
       else categoryFilter.focus({preventScroll: true});
     }
   }
-
-  toggleAllBtn.addEventListener('click', () => {
-    const details = activity.list.querySelectorAll('details.activity-detail');
-    const allOpen = details.length > 0 && [...details].every(d => d.open);
-    if (allOpen) {
-      openActivityKeys.clear();
-      for (const d of details) d.open = false;
-      toggleAllBtn.textContent = 'Alle aufklappen';
-    } else {
-      for (const d of details) {
-        d.open = true;
-        if (d.dataset.entryKey) openActivityKeys.add(d.dataset.entryKey);
-      }
-      toggleAllBtn.textContent = 'Alle zuklappen';
-    }
-  });
-
-  resetFiltersBtn.addEventListener('click', () => {
-    searchFilter.value = '';
-    categoryFilter.value = '';
-    statusFilter.value = '';
-    sortFilter.value = 'desc';
-    renderActivity(currentRenderedSnapshot, currentNowMs);
-  });
   function renderArtifacts(s) {
     updateAvailability(artifacts.availability, s?.availability?.artifacts === true, s?.artifacts?.length || 0, 'Artefakte');
     const fragment = doc.createDocumentFragment();
@@ -527,13 +445,8 @@ function createView(root) {
     }
     issues.list.replaceChildren(fragment);
   }
-  function refreshCollections(s, nowMs = currentNowMs) {
-    currentRenderedSnapshot = s;
-    currentNowMs = nowMs;
-    if (renderedCollection === s) {
-      renderActivity(s, nowMs);
-      return;
-    }
+  function refreshCollections(s) {
+    if (renderedCollection === s) return;
     renderedCollection = s;
     const categories = [...new Set((s?.activity || []).map(item => item.category))].sort((a, b) => a.localeCompare(b, 'de'));
     const selected = categoryFilter.value;
@@ -541,14 +454,13 @@ function createView(root) {
     // Keep an active choice even when a later snapshot no longer has this category.
     if (selected && !categories.includes(selected)) categoryFilter.append(option(selected, `${selected} (derzeit keine Einträge)`));
     categoryFilter.value = selected;
-    renderActivity(s, nowMs);
+    renderActivity(s);
     renderArtifacts(s);
     renderIssues(s);
   }
-  searchFilter.addEventListener('input', () => renderActivity(currentRenderedSnapshot, currentNowMs));
-  categoryFilter.addEventListener('change', () => renderActivity(currentRenderedSnapshot, currentNowMs));
-  statusFilter.addEventListener('change', () => renderActivity(currentRenderedSnapshot, currentNowMs));
-  sortFilter.addEventListener('change', () => renderActivity(currentRenderedSnapshot, currentNowMs));
+  searchFilter.addEventListener('input', () => renderActivity(snapshot));
+  categoryFilter.addEventListener('change', () => renderActivity(snapshot));
+  statusFilter.addEventListener('change', () => renderActivity(snapshot));
 
   function renderQuotaOverview(container, limits, isGoogle = false) {
     const head = el('div', 'overview-quota-head');
@@ -634,7 +546,7 @@ function createView(root) {
       const liveAge = live ? freshness(s.observedAt, nowMs, {staleAfterMs: 12000, clockSkewMs: config?.clockSkewMs ?? 5000}) : null;
       const liveEnded = live && s.live.ended === true;
       const liveLost = live && !liveEnded && liveAge.state !== 'fresh';
-      refreshCollections(s, nowMs);
+      refreshCollections(s);
       for (const [section, sectionFields] of Object.entries(fields)) {
         for (const [field, row] of Object.entries(sectionFields)) {
           const measurement = s?.[section]?.[field];
