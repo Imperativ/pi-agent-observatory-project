@@ -107,3 +107,76 @@ test('Config validates ranges and drops unknown keys, invalid config gives recov
   await writeFile(f.configPath, '{"pollIntervalMs":0}');
   assert.equal((await fetch(f.url + '/config.json')).status, 422);
 });
+
+test('POST /api/action executes allowed commands with same-origin validation', async t => {
+  const f = await fixture(t);
+  // Cross-origin rejected
+  const cross = await fetch(f.url + '/api/action', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'Origin': 'http://evil.com'},
+    body: JSON.stringify({action: 'fix_issue'})
+  });
+  assert.equal(cross.status, 403);
+
+  // Missing or invalid action
+  const badAction = await fetch(f.url + '/api/action', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({})
+  });
+  assert.equal(badAction.status, 400);
+
+  // Allowed action
+  const allowed = await fetch(f.url + '/api/action', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({action: 'fix_issue', summary: 'Blocker beheben'})
+  });
+  assert.equal(allowed.status, 200);
+  const json = await allowed.json();
+  assert.equal(json.ok, true);
+
+  // POST to status.json is still 405
+  const postStatus = await fetch(f.url + '/status.json', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({action: 'test'})
+  });
+  assert.equal(postStatus.status, 405);
+});
+
+test('Server serves allowlisted visual asset SVGs correctly', async t => {
+  const f = await fixture(t);
+  const assets = [
+    '/assets/skull-cog.svg',
+    '/assets/purity-seal.svg',
+    '/assets/schematic-gears.svg',
+    '/assets/schematic-eye.svg',
+    '/assets/schematic-skull.svg',
+    '/assets/mech-footer-plinth.svg',
+    '/assets/hud-bracket.svg',
+    '/assets/corner-rivet.svg'
+  ];
+  for (const asset of assets) {
+    const res = await fetch(f.url + asset);
+    assert.equal(res.status, 200, asset);
+    assert.equal(res.headers.get('content-type'), 'image/svg+xml; charset=utf-8');
+    const text = await res.text();
+    assert.ok(text.includes('<svg'), `${asset} should contain svg element`);
+  }
+
+  const jpgs = [
+    '/assets/skull-cog-medallion.jpg',
+    '/assets/schematic-eye.jpg',
+    '/assets/schematic-skull.jpg',
+    '/assets/purity-seal.jpg'
+  ];
+  for (const jpg of jpgs) {
+    const res = await fetch(f.url + jpg);
+    assert.equal(res.status, 200, jpg);
+    assert.equal(res.headers.get('content-type'), 'image/jpeg');
+    const buf = await res.arrayBuffer();
+    assert.ok(buf.byteLength > 1000, `${jpg} should contain binary image data`);
+  }
+});
+

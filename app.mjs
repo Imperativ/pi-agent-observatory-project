@@ -1,5 +1,6 @@
 import { createStore } from './src/store.mjs';
 import { renderDashboard } from './src/render.mjs';
+import { exportAnonymizedStatusJson } from './src/export.mjs';
 
 const CONFIG_RANGES = {
   pollIntervalMs: [500, 60000], staleAfterMs: [1000, 86400000],
@@ -27,6 +28,7 @@ export function startDashboard(documentRef = document, windowRef = window) {
   const configNotice = documentRef.getElementById('config-status');
   const reloadButton = documentRef.getElementById('reload');
   const themeButton = documentRef.getElementById('theme-toggle');
+  const exportButton = documentRef.getElementById('export-diagnostics');
   if (!root || !configNotice || !reloadButton || !themeButton) return () => {};
 
   let config = null;
@@ -138,6 +140,44 @@ export function startDashboard(documentRef = document, windowRef = window) {
   }
   reloadButton.addEventListener('click', refresh);
 
+  function triggerExport() {
+    const state = store?.getState();
+    const snapshot = state?.snapshot;
+    if (!snapshot) return;
+    try {
+      const json = exportAnonymizedStatusJson(snapshot, { now: new Date() });
+      const blob = new windowRef.Blob([json], { type: 'application/json; charset=utf-8' });
+      const url = windowRef.URL.createObjectURL(blob);
+      const link = documentRef.createElement('a');
+      link.href = url;
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      link.download = `pi-observatory-diagnostics-${timestamp}.json`;
+      documentRef.body.append(link);
+      link.click();
+      link.remove();
+      windowRef.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export fehlgeschlagen:', err);
+    }
+  }
+  exportButton?.addEventListener('click', triggerExport);
+
+  const abortButton = documentRef.getElementById('btn-abort-header');
+  async function triggerAbort() {
+    if (!windowRef.confirm('Soll der laufende Agenten-Vorgang sofort abgebrochen werden (Maschinengeist Not-Halt)?')) return;
+    try {
+      await windowRef.fetch('/api/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'abort_agent' })
+      });
+      windowRef.alert('Maschinengeist Not-Halt an Pi übermittelt.');
+    } catch (err) {
+      windowRef.alert('Not-Halt fehlgeschlagen: ' + err.message);
+    }
+  }
+  abortButton?.addEventListener('click', triggerAbort);
+
   function stop() {
     stopped = true;
     windowRef.clearTimeout(pollTimer);
@@ -145,6 +185,7 @@ export function startDashboard(documentRef = document, windowRef = window) {
     configController?.abort();
     store?.stop();
     reloadButton.removeEventListener('click', refresh);
+    exportButton?.removeEventListener('click', triggerExport);
     themeButton.removeEventListener('click', toggleTheme);
     darkPreference.removeEventListener('change', applyTheme);
     windowRef.removeEventListener('pagehide', onPageHide);

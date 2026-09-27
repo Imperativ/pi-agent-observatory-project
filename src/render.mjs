@@ -28,16 +28,41 @@ const SEVERITIES = {
   info: ['Hinweis', 'info'], warning: ['Warnung', 'warning'], blocker: ['Blocker', 'danger'], error: ['Fehler', 'danger'],
 };
 const SECTIONS = [
-  ['identity', 'Identität', 'Agent, Modell und Sitzung'],
-  ['assignment', 'Auftrag', 'Ziel, Arbeitsschritt und belastbarer Fortschritt'],
-  ['capabilities', 'Fähigkeiten', 'Gemeldete Werkzeuge und Schnittstellen'],
-  ['environment', 'Umgebung', 'Arbeitskontext und Laufzeit'],
-  ['permissions', 'Rechte & Grenzen', 'Freigaben, Einschränkungen und fehlende Zugänge'],
-  ['usage', 'Kontext & Verbrauch', 'Keine Schätzwerte ohne Messquelle'],
-  ['activity', 'Aktivität', 'Chronologisch · neueste Ereignisse zuerst'],
-  ['artifacts', 'Artefakte & Prüfungen', 'Dateiänderungen und Ausführungsnachweise'],
-  ['issues', 'Probleme & nächste Schritte', 'Blocker, Fehler, Warnungen und Annahmen'],
+  ['identity', 'Noosphärische Identität', 'Agent, Modell und Kognitor'],
+  ['assignment', 'Heiliger Auftrag', 'Ziel, Arbeitsschritt und Fortschritt'],
+  ['capabilities', 'Geweihte Werkzeuge', 'Gemeldete Werkzeuge und Schnittstellen'],
+  ['environment', 'Physische Matrix', 'Arbeitskontext und Laufzeit'],
+  ['permissions', 'Doktrin & Schranken', 'Freigaben, Einschränkungen und fehlende Zugänge'],
+  ['usage', 'Motive Force & Quota', 'Keine Schätzwerte ohne Messquelle'],
+  ['activity', 'Noosphärischer Datenstrom', 'Chronologisch · neueste Ereignisse zuerst'],
+  ['artifacts', 'Konstrukte & Riten', 'Dateiänderungen und Ausführungsnachweise'],
+  ['issues', 'Litanei des Lösens', 'Blocker, Fehler, Warnungen und Annahmen'],
 ];
+
+const SECTION_SHORT = {
+  identity: 'Identität',
+  assignment: 'Auftrag',
+  capabilities: 'Werkzeuge',
+  environment: 'Matrix',
+  permissions: 'Schranken',
+  usage: 'Quota',
+  activity: 'Aktivität',
+  artifacts: 'Riten',
+  issues: 'Probleme',
+};
+
+async function callAction(action, payload = {}) {
+  try {
+    const res = await fetch('/api/action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...payload }),
+    });
+    return await res.json();
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
 
 function text(node, value) {
   const next = value == null ? '' : String(value);
@@ -177,6 +202,20 @@ function createView(root) {
   error.setAttribute('role', 'status');
   error.setAttribute('aria-live', 'polite');
   error.hidden = true;
+
+  const actionToast = el('div', 'action-toast');
+  actionToast.setAttribute('role', 'status');
+  actionToast.setAttribute('aria-live', 'polite');
+  actionToast.hidden = true;
+  let toastTimer = null;
+  function notifyAction(message, tone = 'info') {
+    text(actionToast, message);
+    actionToast.dataset.tone = tone;
+    actionToast.hidden = false;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { actionToast.hidden = true; }, 7000);
+  }
+
   const hero = el('section', 'overview');
   hero.setAttribute('aria-labelledby', 'overview-title');
   const dataset = el('p', 'dataset-banner');
@@ -222,9 +261,25 @@ function createView(root) {
   issueBox.append(el('span', 'eyebrow', 'Blocker & Fehler · gemeldet'));
   const blockers = el('p', 'blocker-count');
   const blockerSummary = el('p', 'blocker-summary');
+  const fixHeroBtn = el('button', 'btn-action btn-danger btn-blocker-action', '⚡ Litanei des Lösens (Fix it)');
+  fixHeroBtn.type = 'button';
+  fixHeroBtn.hidden = true;
+  fixHeroBtn.addEventListener('click', async () => {
+    fixHeroBtn.disabled = true;
+    const critical = (currentSnapshot?.issues || []).filter(issue => ['blocker', 'error'].includes(issue.severity));
+    const targetSummary = critical[0]?.summary || currentSnapshot?.issues?.[0]?.summary || 'Allgemeine Fehlerbehebung';
+    notifyAction(`⚡ Litanei des Lösens wird initiiert: „${targetSummary}“ …`, 'info');
+    const res = await callAction('fix_issue', { summary: `Litanei des Lösens: ${targetSummary}` });
+    fixHeroBtn.disabled = false;
+    if (res.ok) {
+      notifyAction(`⚡ Litanei des Lösens an den Maschinengeist übermittelt: „${targetSummary}“`, 'success');
+    } else {
+      notifyAction(`Litanei des Lösens fehlgeschlagen: ${res.error || 'Fehler'}`, 'danger');
+    }
+  });
   const issueLink = el('a', 'quiet-link', 'Probleme & nächste Schritte →');
   issueLink.href = '#issues';
-  issueBox.append(blockers, blockerSummary, issueLink);
+  issueBox.append(blockers, blockerSummary, fixHeroBtn, issueLink);
   summary.append(modelBox, stateBox, taskBox, issueBox);
 
   const quotaOverview = el('div', 'overview-quota');
@@ -239,26 +294,57 @@ function createView(root) {
   const transport = el('span', 'transport-state');
   const pollingLine = el('div', 'polling-line');
   pollingLine.append(polling, transport);
-  hero.append(dataset, headline, summary, quotaOverview, clocks, freshnessReason, pollingLine);
+  const heroSeal = el('div', 'hero-purity-seal');
+  heroSeal.setAttribute('aria-hidden', 'true');
+  hero.append(dataset, headline, summary, quotaOverview, clocks, freshnessReason, pollingLine, heroSeal);
 
-  const nav = el('nav', 'section-nav');
+  const nav = el('nav', 'section-nav sticky-nav');
   nav.setAttribute('aria-label', 'Informationsbereiche');
   const cards = el('div', 'dashboard-grid');
   const sections = {};
   const fields = {};
+  const pillDots = {};
+  const pillLinks = {};
   for (const [index, [key, label, description]] of SECTIONS.entries()) {
-    const link = el('a', '', `${String(index + 1).padStart(2, '0')} ${label}`);
+    const link = el('a', 'nav-pill');
     link.href = `#${key}`;
+    link.dataset.section = key;
+    const cog = el('span', 'pill-cog', `⚙ ${String(index + 1).padStart(2, '0')}`);
+    const name = el('span', 'pill-title', SECTION_SHORT[key] || label);
+    const dot = el('span', 'pill-dot');
+    dot.setAttribute('aria-hidden', 'true');
+    link.append(cog, name, dot);
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      for (const p of Object.values(pillLinks)) p.classList.remove('active');
+      link.classList.add('active');
+      const target = sections[key];
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        target.classList.add('flash-highlight');
+        setTimeout(() => target.classList.remove('flash-highlight'), 1200);
+      }
+    });
     nav.append(link);
+    pillDots[key] = dot;
+    pillLinks[key] = link;
+
     const card = el('section', `card card-${key}`);
     card.id = key;
     card.setAttribute('aria-labelledby', `${key}-title`);
+    const rivetTL = el('span', 'card-rivet corner-tl');
+    rivetTL.setAttribute('aria-hidden', 'true');
+    const rivetTR = el('span', 'card-rivet corner-tr');
+    rivetTR.setAttribute('aria-hidden', 'true');
+    card.append(rivetTL, rivetTR);
+
     const cardHeader = el('header', 'card-header');
-    cardHeader.append(el('span', 'section-index', String(index + 1).padStart(2, '0')));
+    cardHeader.append(el('span', 'section-index', `⚙ ${String(index + 1).padStart(2, '0')}`));
     const heading = el('div');
+    const canticleBadge = el('span', 'canticle-badge', `CANTICLE ${String(index + 1).padStart(2, '0')}`);
     const h2 = el('h2', '', label);
     h2.id = `${key}-title`;
-    heading.append(h2, el('p', 'card-description', description));
+    heading.append(canticleBadge, h2, el('p', 'card-description', description));
     cardHeader.append(heading);
     card.append(cardHeader);
     sections[key] = card;
@@ -276,6 +362,142 @@ function createView(root) {
   const uptimeRow = measurementRow(sections.identity.querySelector('dl'), 'uptime', 'Laufzeit');
   const assignmentUpdated = el('p', 'section-note');
   sections.assignment.append(assignmentUpdated);
+
+  // Canticle 02 Blueprint: Cranial Cogitator Schematic
+  const cogitatorCard = el('div', 'blueprint-card');
+  const cogitatorCanvas = el('div', 'blueprint-canvas blueprint-cranial');
+  cogitatorCanvas.setAttribute('role', 'img');
+  cogitatorCanvas.setAttribute('aria-label', 'Cranial-Cogitator Schematik (MK-IV)');
+  const cogitatorCap = el('span', 'blueprint-caption', 'SCHEMATIK // CRANIAL-EINHEIT MK-IV · OMNISSIAH');
+  cogitatorCard.append(cogitatorCanvas, cogitatorCap);
+  sections.assignment.append(cogitatorCard);
+
+  // Canticle 05 Blueprint: Oculus Mechanicus Schematic
+  const oculusCard = el('div', 'blueprint-card');
+  const oculusCanvas = el('div', 'blueprint-canvas blueprint-oculus');
+  oculusCanvas.setAttribute('role', 'img');
+  oculusCanvas.setAttribute('aria-label', 'Oculus Mechanicus Schematik');
+  const oculusCap = el('span', 'blueprint-caption', 'SCHEMATIK // OCULUS MECHANICUS SENSOR-ARRAY');
+  oculusCard.append(oculusCanvas, oculusCap);
+  sections.permissions.append(oculusCard);
+
+  // Canticle 09 Purity Seal
+  const issuesSeal = el('div', 'card-purity-seal');
+  issuesSeal.setAttribute('aria-hidden', 'true');
+  sections.issues.append(issuesSeal);
+
+  // Section 03: Geweihte Werkzeuge - Action bar & Paket-Installer
+  const capActionBar = el('div', 'card-action-bar');
+  const installPkgBtn = el('button', 'btn-action btn-primary', '📦 Skill / Extension installieren');
+  installPkgBtn.type = 'button';
+  const browseLink = el('a', 'btn-action btn-gold', '🌐 pi.dev/packages durchstöbern ↗');
+  browseLink.href = 'https://pi.dev/packages';
+  browseLink.target = '_blank';
+  browseLink.rel = 'noopener noreferrer';
+  capActionBar.append(installPkgBtn, browseLink);
+
+  const installerBox = el('div', 'installer-box');
+  installerBox.hidden = true;
+  const installerTitle = el('p', 'installer-title', 'Geweihtes Paket im Agenten verankern (pi install)');
+  const installerForm = el('form', 'installer-form');
+  installerForm.addEventListener('submit', (e) => e.preventDefault());
+  const pkgInput = el('input', 'installer-input');
+  pkgInput.type = 'text';
+  pkgInput.placeholder = 'z. B. @pi-agent/git-tools oder paket-name';
+  const pkgSubmit = el('button', 'btn-action btn-primary', 'Installieren');
+  pkgSubmit.type = 'button';
+  const pkgCancel = el('button', 'btn-action btn-secondary', 'Schließen');
+  pkgCancel.type = 'button';
+  const pkgStatus = el('p', 'installer-status');
+  installerForm.append(pkgInput, pkgSubmit, pkgCancel);
+  installerBox.append(installerTitle, installerForm, pkgStatus);
+
+  installPkgBtn.addEventListener('click', () => {
+    installerBox.hidden = !installerBox.hidden;
+    if (!installerBox.hidden) {
+      pkgInput.value = '';
+      text(pkgStatus, '');
+      pkgInput.focus();
+    }
+  });
+  pkgCancel.addEventListener('click', () => { installerBox.hidden = true; });
+  pkgSubmit.addEventListener('click', async () => {
+    const pkg = pkgInput.value.trim();
+    if (!pkg) return;
+    if (!/^(@?[a-zA-Z0-9_\-\.\/]+)$/.test(pkg)) {
+      text(pkgStatus, 'Ungültiger Paketname. Nur alphanumerische Zeichen, @, /, -, _ und . erlaubt.');
+      tone(pkgStatus, 'danger');
+      return;
+    }
+    pkgSubmit.disabled = true;
+    text(pkgStatus, `Installiere ${pkg} … Bitte warten.`);
+    tone(pkgStatus, 'info');
+    notifyAction(`📦 Installation von „${pkg}“ wird gestartet …`, 'info');
+    const res = await callAction('install_package', { package: pkg });
+    pkgSubmit.disabled = false;
+    if (res.ok) {
+      text(pkgStatus, `Erfolg! ${res.output || 'Paket installiert.'}`);
+      tone(pkgStatus, 'success');
+      notifyAction(`📦 Paket „${pkg}“ erfolgreich installiert!`, 'success');
+    } else {
+      text(pkgStatus, `Fehler: ${res.error || 'Installation fehlgeschlagen'}`);
+      tone(pkgStatus, 'danger');
+      notifyAction(`Installationsfehler: ${res.error || 'Fehler'}`, 'danger');
+    }
+  });
+  sections.capabilities.append(capActionBar, installerBox);
+
+  // Section 06: Motive Force & Quota - Action bar
+  const usageActionBar = el('div', 'card-action-bar');
+  const usageSyncBtn = el('button', 'btn-action btn-gold', '📡 Noosphären-Sync');
+  usageSyncBtn.type = 'button';
+  usageSyncBtn.title = 'Ritus der noosphärischen Daten-Inloads vollziehen (Quota synchronisieren)';
+  usageSyncBtn.addEventListener('click', async () => {
+    usageSyncBtn.disabled = true;
+    notifyAction('📡 Ritus der noosphärischen Daten-Inloads wird vollzogen …', 'info');
+    const res = await callAction('sync_quota');
+    usageSyncBtn.disabled = false;
+    if (res.ok) {
+      notifyAction('📡 Ritus der noosphärischen Daten-Inloads vollzogen (Quota synchronisiert).', 'success');
+    } else {
+      notifyAction(`Sync fehlgeschlagen: ${res.error || 'Fehler'}`, 'danger');
+    }
+  });
+
+  const usageResetBtn = el('button', 'btn-action btn-primary', '🔄 OpenAI Limit-Reset einlösen');
+  usageResetBtn.type = 'button';
+  usageResetBtn.title = '1 Rate-Limit-Reset Credit für OpenAI verbrauchen';
+  usageResetBtn.addEventListener('click', async () => {
+    if (!confirm('Soll 1 OpenAI Limit-Reset-Credit jetzt eingelöst werden? (Verfügbar: 3)')) return;
+    usageResetBtn.disabled = true;
+    notifyAction('🔄 Litanei der Rekalibrierung wird ausgeführt …', 'info');
+    const res = await callAction('reset_openai_quota');
+    usageResetBtn.disabled = false;
+    if (res.ok) {
+      notifyAction(`🔄 Litanei der Rekalibrierung vollzogen: 1 Credit eingelöst (${res.remainingCredits ?? 0} übrig).`, 'success');
+    } else {
+      notifyAction(`Reset fehlgeschlagen: ${res.error || 'Fehler'}`, 'danger');
+    }
+  });
+
+  const usageCompactBtn = el('button', 'btn-action btn-secondary', '🧹 Speicher-Pneumatik (Compact)');
+  usageCompactBtn.type = 'button';
+  usageCompactBtn.title = 'Kontext des Maschinengeistes komprimieren';
+  usageCompactBtn.addEventListener('click', async () => {
+    if (!confirm('Soll der Kontext des Maschinengeistes komprimiert werden (Speicher-Pneumatik / Compact)?')) return;
+    usageCompactBtn.disabled = true;
+    notifyAction('🧹 Litanei der Speichersäuberung (Compact) wird initiiert …', 'info');
+    const res = await callAction('compact_context');
+    usageCompactBtn.disabled = false;
+    if (res.ok) {
+      notifyAction('🧹 Litanei der Speichersäuberung an Pi übermittelt.', 'success');
+    } else {
+      notifyAction(`Compact fehlgeschlagen: ${res.error || 'Fehler'}`, 'danger');
+    }
+  });
+
+  usageActionBar.append(usageSyncBtn, usageResetBtn, usageCompactBtn);
+  sections.usage.append(usageActionBar);
   sections.usage.append(el('p', 'section-note', 'Ohne verlässliche Quelle bleiben Werte nicht verfügbar oder ungeprüft. Kosten verwenden ausschließlich die in der Quelle genannte Einheit.'));
 
   function collection(card, label) {
@@ -323,6 +545,7 @@ function createView(root) {
   controls.append(searchLabel);
   const categoryFilter = filterControl('activity-category', 'Kategorie');
   const statusFilter = filterControl('activity-status', 'Status');
+  const sortFilter = filterControl('activity-sort', 'Reihenfolge');
   function option(value, label) {
     const node = el('option', '', label);
     node.value = value;
@@ -331,9 +554,24 @@ function createView(root) {
   categoryFilter.append(option('', 'Alle Kategorien'));
   statusFilter.append(option('', 'Alle Status'));
   for (const [key, pair] of Object.entries(ACTIVITY_STATES)) statusFilter.append(option(key, pair[0]));
+  sortFilter.append(option('desc', 'Neueste zuerst (Standard)'));
+  sortFilter.append(option('asc', 'Älteste zuerst (Chronologisch)'));
+
+  const actionsBar = el('div', 'filter-actions');
+  const toggleAllBtn = el('button', 'filter-btn', 'Alle aufklappen');
+  toggleAllBtn.type = 'button';
+  toggleAllBtn.id = 'activity-toggle-all';
+
+  const resetFiltersBtn = el('button', 'filter-btn', 'Filter zurücksetzen');
+  resetFiltersBtn.type = 'button';
+  resetFiltersBtn.id = 'activity-reset-filters';
+  resetFiltersBtn.hidden = true;
+
+  actionsBar.append(toggleAllBtn, resetFiltersBtn);
   const resultCount = el('p', 'filter-count');
   resultCount.setAttribute('aria-live', 'polite');
   sections.activity.insertBefore(controls, activity.availability);
+  sections.activity.insertBefore(actionsBar, activity.availability);
   sections.activity.insertBefore(resultCount, activity.list);
   const artifacts = collection(sections.artifacts, 'Artefakte');
   const checks = collection(sections.artifacts, 'Prüfungen');
@@ -342,10 +580,46 @@ function createView(root) {
   sections.artifacts.insertBefore(artifactTitle, artifacts.availability);
   sections.artifacts.insertBefore(checkTitle, checks.availability);
   const issues = collection(sections.issues, 'Probleme und nächste Schritte');
+  const issuesActionBar = el('div', 'card-action-bar');
+  const fixIssuesSectionBtn = el('button', 'btn-action btn-danger', '⚡ Litanei des Lösens (Alle Blocker beheben)');
+  fixIssuesSectionBtn.type = 'button';
+  fixIssuesSectionBtn.addEventListener('click', async () => {
+    fixIssuesSectionBtn.disabled = true;
+    const critical = (currentRenderedSnapshot?.issues || []).filter(issue => ['blocker', 'error'].includes(issue.severity));
+    const targetSummary = critical[0]?.summary || currentRenderedSnapshot?.issues?.[0]?.summary || 'Allgemeine Problembehebung';
+    notifyAction(`⚡ Litanei des Lösens initiiert: „${targetSummary}“ …`, 'info');
+    const res = await callAction('fix_issue', { summary: `Litanei des Lösens: ${targetSummary}` });
+    fixIssuesSectionBtn.disabled = false;
+    if (res.ok) {
+      notifyAction('⚡ Litanei des Lösens an den Maschinengeist übermittelt.', 'success');
+    } else {
+      notifyAction(`Aktion fehlgeschlagen: ${res.error || 'Fehler'}`, 'danger');
+    }
+  });
+  issuesActionBar.append(fixIssuesSectionBtn);
+  sections.issues.insertBefore(issuesActionBar, issues.availability);
 
+  function relativeTime(isoString, nowMs) {
+    const time = Date.parse(isoString);
+    if (!Number.isFinite(time) || !Number.isFinite(nowMs)) return null;
+    const diffSec = Math.round((nowMs - time) / 1000);
+    if (diffSec < 0 && Math.abs(diffSec) > 5) return 'in der Zukunft';
+    if (diffSec < 45) return 'gerade eben';
+    const diffMin = Math.round(diffSec / 60);
+    if (diffMin < 60) return `vor ${diffMin} Min.`;
+    const diffHours = Math.round(diffMin / 60);
+    if (diffHours < 24) return `vor ${diffHours} Std.`;
+    const diffDays = Math.round(diffHours / 24);
+    return `vor ${diffDays} Tg.`;
+  }
+
+  let currentRenderedSnapshot = null;
+  let currentNowMs = Date.now();
   let renderedCollection = null;
   const openActivityKeys = new Set();
-  function renderActivity(s) {
+  function renderActivity(s, nowMs = currentNowMs) {
+    currentRenderedSnapshot = s;
+    currentNowMs = nowMs;
     const source = s?.activity || [];
     const query = searchFilter.value.trim().toLocaleLowerCase('de');
     const filtered = source.filter(item => (!categoryFilter.value || item.category === categoryFilter.value)
@@ -356,25 +630,44 @@ function createView(root) {
     for (const node of activity.list.querySelectorAll('details[open]')) openActivityKeys.add(node.dataset.entryKey);
     const active = doc.activeElement;
     const focusedKey = activity.list.contains(active) ? active.closest('details')?.dataset.entryKey : null;
+
+    const isAsc = sortFilter.value === 'asc';
     const ordered = source.map((item, index) => ({item, key: `${item.id}:${item.time}:${index}`}))
-      .sort((a, b) => Date.parse(b.item.time) - Date.parse(a.item.time));
+      .sort((a, b) => isAsc ? (Date.parse(a.item.time) - Date.parse(b.item.time)) : (Date.parse(b.item.time) - Date.parse(a.item.time)));
+
+    const isFiltered = Boolean(searchFilter.value || categoryFilter.value || statusFilter.value || sortFilter.value === 'asc');
+    resetFiltersBtn.hidden = !isFiltered;
+
     const currentKeys = new Set(ordered.map(entry => entry.key));
     for (const key of openActivityKeys) if (!currentKeys.has(key)) openActivityKeys.delete(key);
     const fragment = doc.createDocumentFragment();
+    activity.list.className = 'entry-list timeline-list';
     for (const {item, key} of ordered) {
       if (!filtered.includes(item)) continue;
-      const li = el('li', 'entry');
+      const li = el('li', 'entry timeline-entry');
+      const marker = el('span', 'timeline-marker');
+      marker.dataset.status = item.status || 'unknown';
+      marker.setAttribute('aria-hidden', 'true');
       const detail = el('details', 'activity-detail');
       detail.dataset.entryKey = key;
       detail.open = openActivityKeys.has(key);
       detail.addEventListener('toggle', () => {
         if (detail.open) openActivityKeys.add(key);
         else openActivityKeys.delete(key);
+        const details = activity.list.querySelectorAll('details.activity-detail');
+        const allOpen = details.length > 0 && [...details].every(d => d.open);
+        toggleAllBtn.textContent = allOpen ? 'Alle zuklappen' : 'Alle aufklappen';
       });
       const summary = el('summary', 'entry-heading');
       const time = el('time', 'entry-time', date(item.time));
       time.dateTime = item.time;
-      summary.append(time, el('span', 'entry-category', item.category));
+      summary.append(time);
+      const rel = relativeTime(item.time, nowMs);
+      if (rel) {
+        const relTime = el('span', 'entry-rel-time', `(${rel})`);
+        summary.append(relTime);
+      }
+      summary.append(el('span', 'entry-category', item.category));
       const state = el('span', 'badge');
       badge(state, ACTIVITY_STATES[item.status] || ACTIVITY_STATES.unknown);
       summary.append(state, el('span', 'entry-summary', item.summary));
@@ -382,16 +675,45 @@ function createView(root) {
       fieldLine(body, 'Dauer', item.durationMs === null ? 'Nicht verfügbar' : `${NUMBERS.format(item.durationMs)} ms`);
       evidence(body, item, item.time);
       detail.append(summary, body);
-      li.append(detail);
+      li.append(marker, detail);
       fragment.append(li);
     }
     activity.list.replaceChildren(fragment);
+
+    const visibleDetails = activity.list.querySelectorAll('details.activity-detail');
+    const allOpen = visibleDetails.length > 0 && [...visibleDetails].every(d => d.open);
+    toggleAllBtn.textContent = allOpen ? 'Alle zuklappen' : 'Alle aufklappen';
+
     if (focusedKey) {
       const replacement = [...activity.list.querySelectorAll('details')].find(node => node.dataset.entryKey === focusedKey);
       if (replacement) replacement.querySelector('summary')?.focus({preventScroll: true});
       else categoryFilter.focus({preventScroll: true});
     }
   }
+
+  toggleAllBtn.addEventListener('click', () => {
+    const details = activity.list.querySelectorAll('details.activity-detail');
+    const allOpen = details.length > 0 && [...details].every(d => d.open);
+    if (allOpen) {
+      openActivityKeys.clear();
+      for (const d of details) d.open = false;
+      toggleAllBtn.textContent = 'Alle aufklappen';
+    } else {
+      for (const d of details) {
+        d.open = true;
+        if (d.dataset.entryKey) openActivityKeys.add(d.dataset.entryKey);
+      }
+      toggleAllBtn.textContent = 'Alle zuklappen';
+    }
+  });
+
+  resetFiltersBtn.addEventListener('click', () => {
+    searchFilter.value = '';
+    categoryFilter.value = '';
+    statusFilter.value = '';
+    sortFilter.value = 'desc';
+    renderActivity(currentRenderedSnapshot, currentNowMs);
+  });
   function renderArtifacts(s) {
     updateAvailability(artifacts.availability, s?.availability?.artifacts === true, s?.artifacts?.length || 0, 'Artefakte');
     const fragment = doc.createDocumentFragment();
@@ -438,6 +760,23 @@ function createView(root) {
       const severity = el('span', 'badge');
       badge(severity, SEVERITIES[item.severity] || SEVERITIES.warning);
       main.append(severity, el('span', 'entry-summary', item.summary));
+      if (['blocker', 'error'].includes(item.severity)) {
+        const itemFixBtn = el('button', 'btn-action btn-action-sm btn-danger item-fix-btn', '⚡ Beheben');
+        itemFixBtn.type = 'button';
+        itemFixBtn.title = 'Litanei des Lösens für diesen Blocker ausführen';
+        itemFixBtn.addEventListener('click', async () => {
+          itemFixBtn.disabled = true;
+          notifyAction(`⚡ Litanei des Lösens für „${item.summary}“ übermittelt …`, 'info');
+          const res = await callAction('fix_issue', { summary: `Litanei des Lösens: ${item.summary}` });
+          itemFixBtn.disabled = false;
+          if (res.ok) {
+            notifyAction(`⚡ Litanei des Lösens für „${item.summary}“ erfolgreich erteilt.`, 'success');
+          } else {
+            notifyAction(`Fehler: ${res.error || 'Aktion fehlgeschlagen'}`, 'danger');
+          }
+        });
+        main.append(itemFixBtn);
+      }
       li.append(main);
       fieldLine(li, 'Nächster Schritt', item.nextAction || 'Nicht verfügbar');
       evidence(li, item);
@@ -445,8 +784,13 @@ function createView(root) {
     }
     issues.list.replaceChildren(fragment);
   }
-  function refreshCollections(s) {
-    if (renderedCollection === s) return;
+  function refreshCollections(s, nowMs = currentNowMs) {
+    currentRenderedSnapshot = s;
+    currentNowMs = nowMs;
+    if (renderedCollection === s) {
+      renderActivity(s, nowMs);
+      return;
+    }
     renderedCollection = s;
     const categories = [...new Set((s?.activity || []).map(item => item.category))].sort((a, b) => a.localeCompare(b, 'de'));
     const selected = categoryFilter.value;
@@ -454,13 +798,53 @@ function createView(root) {
     // Keep an active choice even when a later snapshot no longer has this category.
     if (selected && !categories.includes(selected)) categoryFilter.append(option(selected, `${selected} (derzeit keine Einträge)`));
     categoryFilter.value = selected;
-    renderActivity(s);
+    renderActivity(s, nowMs);
     renderArtifacts(s);
     renderIssues(s);
   }
-  searchFilter.addEventListener('input', () => renderActivity(snapshot));
-  categoryFilter.addEventListener('change', () => renderActivity(snapshot));
-  statusFilter.addEventListener('change', () => renderActivity(snapshot));
+  searchFilter.addEventListener('input', () => renderActivity(currentRenderedSnapshot, currentNowMs));
+  categoryFilter.addEventListener('change', () => renderActivity(currentRenderedSnapshot, currentNowMs));
+  statusFilter.addEventListener('change', () => renderActivity(currentRenderedSnapshot, currentNowMs));
+  sortFilter.addEventListener('change', () => renderActivity(currentRenderedSnapshot, currentNowMs));
+
+  function createQuotaActionBar(isGoogle) {
+    const actionBar = el('div', 'quota-action-bar');
+    const syncBtn = el('button', 'btn-action btn-gold', '📡 Noosphären-Sync');
+    syncBtn.type = 'button';
+    syncBtn.title = 'Ritus der noosphärischen Daten-Inloads vollziehen (Quota synchronisieren)';
+    syncBtn.addEventListener('click', async () => {
+      syncBtn.disabled = true;
+      notifyAction('📡 Ritus der noosphärischen Daten-Inloads wird vollzogen …', 'info');
+      const res = await callAction('sync_quota');
+      syncBtn.disabled = false;
+      if (res.ok) {
+        notifyAction('📡 Ritus der noosphärischen Daten-Inloads vollzogen (Quota synchronisiert).', 'success');
+      } else {
+        notifyAction(`Sync fehlgeschlagen: ${res.error || 'Fehler'}`, 'danger');
+      }
+    });
+    actionBar.append(syncBtn);
+
+    if (!isGoogle) {
+      const resetBtn = el('button', 'btn-action btn-primary', '🔄 OpenAI Limit-Reset einlösen');
+      resetBtn.type = 'button';
+      resetBtn.title = '1 Rate-Limit-Reset Credit für OpenAI verbrauchen';
+      resetBtn.addEventListener('click', async () => {
+        if (!confirm('Soll 1 OpenAI Limit-Reset-Credit jetzt eingelöst werden? (Verfügbar: 3)')) return;
+        resetBtn.disabled = true;
+        notifyAction('🔄 Litanei der Rekalibrierung wird ausgeführt …', 'info');
+        const res = await callAction('reset_openai_quota');
+        resetBtn.disabled = false;
+        if (res.ok) {
+          notifyAction(`🔄 Litanei der Rekalibrierung vollzogen: 1 Credit eingelöst (${res.remainingCredits ?? 0} übrig).`, 'success');
+        } else {
+          notifyAction(`Reset fehlgeschlagen: ${res.error || 'Fehler'}`, 'danger');
+        }
+      });
+      actionBar.append(resetBtn);
+    }
+    return actionBar;
+  }
 
   function renderQuotaOverview(container, limits, isGoogle = false) {
     const head = el('div', 'overview-quota-head');
@@ -504,7 +888,7 @@ function createView(root) {
     }
     if (limits.detail) grid.append(el('p', 'section-note', limits.detail));
 
-    container.replaceChildren(head, grid);
+    container.replaceChildren(head, grid, createQuotaActionBar(isGoogle));
   }
 
   function renderQuotaNotice(container, isGoogle = false) {
@@ -518,7 +902,7 @@ function createView(root) {
       ? 'Nicht synchronisiert · Google stellt Kontolimits von https://gemini.google.com/usage nicht über eine offene API bereit. Quotas können über Browser-Sync ("npm run quota:sync") oder /limits in Pi übergeben werden.'
       : 'Nicht verfügbar · OpenAI stellt Kontolimits von https://chatgpt.com/settings/usage?tab=overview nicht über eine offene API bereit. Quotas können über Browser-Sync ("npm run quota:sync") oder /limits in Pi übergeben werden.');
     note.style.margin = '0';
-    container.replaceChildren(head, note);
+    container.replaceChildren(head, note, createQuotaActionBar(isGoogle));
   }
 
   const validation = el('details', 'validation-notice');
@@ -530,10 +914,11 @@ function createView(root) {
   legend.append(el('summary', '', 'Wie Herkunft und Zustände zu lesen sind'));
   legend.append(el('p', '', '„Verifiziert laut Quelle“ ist eine Quellenangabe, keine unabhängige Attestierung dieses Dashboards. „Selbstauskunft“ stammt vom Agenten; „ungeprüft“ hat keinen vollständigen Nachweis. „Nicht verfügbar“ ist weder null Verbrauch noch eine leere Liste.'));
   legend.append(el('p', '', '„Live-Datensatz“ bezeichnet die markierte Statusquelle, nicht garantierte Aktualität. Die Aktualität beruht nur auf observedAt. Aktivität beschreibt Ereignisse; eine bestandene Prüfung benötigt einen erfolgreichen Ausführungsnachweis.'));
-  root.replaceChildren(error, hero, nav, validation, cards, legend);
+  root.replaceChildren(error, actionToast, hero, nav, validation, cards, legend);
 
   let snapshotReference;
   let snapshot = null;
+  let currentSnapshot = null;
   let warningSignature = '';
   return {
     update(state, config, nowMs) {
@@ -542,11 +927,12 @@ function createView(root) {
         snapshot = state.snapshot ? redact(state.snapshot) : null;
       }
       const s = snapshot;
+      currentSnapshot = s;
       const live = s?.live?.source === 'pi_extension';
       const liveAge = live ? freshness(s.observedAt, nowMs, {staleAfterMs: 12000, clockSkewMs: config?.clockSkewMs ?? 5000}) : null;
       const liveEnded = live && s.live.ended === true;
       const liveLost = live && !liveEnded && liveAge.state !== 'fresh';
-      refreshCollections(s);
+      refreshCollections(s, nowMs);
       for (const [section, sectionFields] of Object.entries(fields)) {
         for (const [field, row] of Object.entries(sectionFields)) {
           const measurement = s?.[section]?.[field];
@@ -611,6 +997,36 @@ function createView(root) {
       tone(blockers, !knownIssues ? 'neutral' : critical.length ? 'danger' : 'success');
       text(blockerSummary, !knownIssues ? 'Problemliste fehlt; keine Entwarnung möglich.'
         : critical[0]?.summary || (s.issues.length ? `${s.issues.length} weitere Hinweise in der Problemliste.` : 'Keine Probleme gemeldet (leere Liste).'));
+
+      if (knownIssues && critical.length > 0) {
+        fixHeroBtn.hidden = false;
+        fixHeroBtn.textContent = `⚡ Litanei des Lösens (${critical.length} ${critical.length === 1 ? 'Problem' : 'Probleme'})`;
+      } else if (knownIssues && (s?.issues || []).length > 0) {
+        fixHeroBtn.hidden = false;
+        fixHeroBtn.textContent = '⚡ Litanei des Lösens (Prüfen)';
+      } else {
+        fixHeroBtn.hidden = true;
+      }
+
+      if (pillDots.issues) {
+        pillDots.issues.dataset.state = critical.length > 0 ? 'danger' : (s?.issues?.length > 0 ? 'warning' : 'clear');
+      }
+      if (pillDots.activity) {
+        pillDots.activity.dataset.state = valueOf(s?.assignment?.state) === 'working' ? 'working' : 'idle';
+      }
+      if (pillDots.assignment) {
+        const aState = valueOf(s?.assignment?.state);
+        pillDots.assignment.dataset.state = ['failed', 'blocked'].includes(aState) ? 'danger' : aState === 'working' ? 'working' : 'clear';
+      }
+      if (pillDots.usage) {
+        const fiveHourPct = rateLimitVal?.fiveHour?.remainingPercent;
+        const weeklyPct = rateLimitVal?.weekly?.remainingPercent;
+        const minPct = Math.min(fiveHourPct ?? 100, weeklyPct ?? 100);
+        pillDots.usage.dataset.state = minPct <= 15 ? 'danger' : minPct <= 35 ? 'warning' : 'clear';
+      }
+      for (const k of ['identity', 'capabilities', 'environment', 'permissions', 'artifacts']) {
+        if (pillDots[k]) pillDots[k].dataset.state = 'clear';
+      }
       const fresh = liveAge || freshness(s?.observedAt, nowMs, config || {});
       badge(freshBadge, fresh.state === 'fresh' ? ['Daten aktuell', 'success']
         : fresh.state === 'stale' ? ['Daten veraltet', 'warning'] : ['Aktualität unbekannt', 'neutral']);

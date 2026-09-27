@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 240" width="100" height="240">
+  <defs>
+    <!-- Wax Shading Gradients -->
+    <radialGradient id="wax-grad" cx="45%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#c92a2a"/>
+      <stop offset="50%" stop-color="#961517"/>
+      <stop offset="85%" stop-color="#64090a"/>
+      <stop offset="100%" stop-color="#3d0304"/>
+    </radialGradient>
+    <radialGradient id="wax-inner" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#7a0f11"/>
+      <stop offset="80%" stop-color="#550809"/>
+      <stop offset="100%" stop-color="#380405"/>
+    </radialGradient>
+    <!-- Parchment Ribbon Gradient -->
+    <linearGradient id="parchment-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#eae2cf"/>
+      <stop offset="40%" stop-color="#d9cdb0"/>
+      <stop offset="80%" stop-color="#baa882"/>
+      <stop offset="100%" stop-color="#8c7750"/>
+    </linearGradient>
+    <filter id="seal-shadow" x="-20%" y="-10%" width="140%" height="130%">
+      <feDropShadow dx="2" dy="5" stdDeviation="4" flood-color="#000000" flood-opacity="0.75"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#seal-shadow)">
+    <!-- PARCHMENT RIBBON (Dangling Behind Wax) -->
+    <!-- Ribbon 1 (Left & Slightly Behind) -->
+    <path d="
+      M 36 45
+      Q 30 90, 24 135
+      Q 18 180, 26 215
+      L 38 208
+      L 48 220
+      Q 38 175, 42 135
+      Q 46 90, 52 45
+      Z
+    " fill="url(#parchment-grad)" stroke="#685536" stroke-width="0.8"/>
+
+    <!-- Ribbon 1 Sacred Script Lines -->
+    <path d="M 28 85 L 44 86 M 26 95 L 43 96 M 25 105 L 42 106 M 24 116 L 40 117 M 23 127 L 41 128 M 22 138 L 40 139 M 22 149 L 38 150 M 23 160 L 39 161 M 24 172 L 40 173 M 25 184 L 38 185 M 26 195 L 36 196"
+          stroke="#42341e" stroke-width="1.2" stroke-linecap="round" stroke-dasharray="2 3 5 2"/>
+
+    <!-- Ribbon 2 (Right & In Front) -->
+    <path d="
+      M 48 45
+      Q 58 95, 62 140
+      Q 66 185, 58 228
+      L 72 222
+      L 82 235
+      Q 86 185, 80 140
+      Q 74 95, 64 45
+      Z
+    " fill="url(#parchment-grad)" stroke="#685536" stroke-width="0.8"/>
+
+    <!-- Ribbon 2 Sacred Inscriptions & Binharic Text -->
+    <text x="56" y="90" font-family="'Cinzel Decorative', Georgia, serif" font-size="5" fill="#3a2a14" font-weight="bold">AVE</text>
+    <text x="54" y="104" font-family="'Cinzel Decorative', Georgia, serif" font-size="5" fill="#3a2a14" font-weight="bold">DEUS</text>
+    <text x="52" y="118" font-family="'Cinzel Decorative', Georgia, serif" font-size="4.5" fill="#3a2a14" font-weight="bold">MACHINA</text>
+    <!-- Script lines -->
+    <path d="M 54 130 L 74 131 M 55 139 L 75 140 M 56 148 L 76 149 M 57 157 L 76 158 M 58 166 L 75 167 M 59 175 L 74 176 M 60 184 L 74 185 M 60 193 L 73 194 M 61 202 L 72 203"
+          stroke="#3d2d18" stroke-width="1.2" stroke-linecap="round" stroke-dasharray="3 2 4 1"/>
+
+    <!-- RED WAX SEAL (Embossed & Melted Edges) -->
+    <!-- Irregular Melting Outer Wax Droplets -->
+    <path d="
+      M 50 12
+      C 66 10, 78 18, 84 30
+      C 90 42, 88 56, 81 68
+      C 74 80, 62 86, 48 85
+      C 34 84, 22 76, 17 64
+      C 12 52, 14 36, 23 24
+      C 32 12, 40 13, 50 12
+      Z
+    " fill="url(#wax-grad)" stroke="#450506" stroke-width="1.5"/>
+
+    <!-- Inner Wax Stamping Basin -->
+    <circle cx="50" cy="48" r="26" fill="url(#wax-inner)" stroke="#b32024" stroke-width="1" opacity="0.8"/>
+
+    <!-- EMBOSSED SKULL & COG SEAL IMPRINT -->
+    <!-- Cog ring in wax -->
+    <circle cx="50" cy="48" r="21" fill="none" stroke="#2a0304" stroke-width="3" stroke-dasharray="4 4.5"/>
+    <circle cx="50" cy="48" r="18" fill="none" stroke="#8b1417" stroke-width="1.2"/>
+
+    <!-- Center Skull Silhouette (Depressed into Wax) -->
+    <g transform="translate(50, 48) scale(0.65)" fill="#2e0405" stroke="#9e181b" stroke-width="0.6">
+      <path d="
+        M -12 -14
+        C -12 -24, 12 -24, 12 -14
+        C 12 -8, 10 -4, 8 0
+        C 8 6, 6 10, 5 12
+        L -5 12
+        C -6 10, -8 6, -8 0
+        C -10 -4, -12 -8, -12 -14
+        Z
+      "/>
+      <!-- Eyes & Nose -->
+      <ellipse cx="-4.5" cy="-8" rx="2.5" ry="3.5" fill="#150102"/>
+      <ellipse cx="4.5" cy="-8" rx="2.5" ry="3.5" fill="#150102"/>
+      <polygon points="0,-3 -1.5,1 1.5,1" fill="#150102"/>
+      <!-- Teeth notches -->
+      <line x1="-3" y1="8" x2="-3" y2="12" stroke="#150102" stroke-width="0.8"/>
+      <line x1="0" y1="8" x2="0" y2="12" stroke="#150102" stroke-width="0.8"/>
+      <line x1="3" y1="8" x2="3" y2="12" stroke="#150102" stroke-width="0.8"/>
+    </g>
+
+    <!-- Top Wax Gloss Highlight -->
+    <path d="M 32 24 C 42 18, 60 18, 68 25 C 60 21, 40 21, 32 24 Z" fill="#ff7b7b" opacity="0.4"/>
+  </g>
+</svg>

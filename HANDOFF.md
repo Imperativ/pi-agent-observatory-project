@@ -1,75 +1,68 @@
-# Übergabe / bewusste Pause — Pi Agent Observatory
+# Übergabe / Zwischenstand — Pi Agent Observatory (Adeptus Mechanicus Edition)
 
 ## Auftrag, Autorisierung und Speicherort
 
-Der Magos hat die Erstellung eines aktualisierten Handoffs und die Sicherung auf GitHub angeordnet, um die Sitzung zu einem späteren Zeitpunkt nahtlos fortzusetzen.
-- **Projektverzeichnis:** `D:/imp-projekte/Pi-Dashboard`
-- **Git Remote:** `origin` -> `https://github.com/Imperativ/pi-agent-observatory-project.git` (Branch `main`)
-- **Regel:** Vor jedem Push `origin` prüfen. Jeder geprüfte Projektpunkt wird separat committet und gepusht.
+Der Magos hat das Dashboard von einem passiven Status-Viewer in ein interaktives **Adeptus Mechanicus Kommandozentrum (Opus Machina · ROH_58)** transformiert und auf GitHub im Branch `antiG-work` abgesichert.
+- **Projektverzeichnis:** `/home/imp/Dokumente/imp-projekte/pi-dashboard` (CachyOS Linux)
+- **Git Remote:** `origin` -> `https://github.com/Imperativ/pi-agent-observatory-project.git`
+- **Aktiver Entwicklungsbranch:** `antiG-work`
+- **Verbindliche Design-Leitlinien:** Authentische Tech-Priest-Ästhetik (Martian Crimson `#9b1d20`, Antique Brass `#c89b3c`, Adamantine Slate `#0c0d10`, Sacred Binharic Streamer, 9 Canticles), strikte Barrierefreiheit (WCAG 2.1 AA auf allen Breakpoints), strikte DOM-Sicherheit (keine unsicheren DOM-Senken wie `innerHTML`).
 
 ## Aktueller Implementierungsstand
 
-- **Zielplattform:** Unter Windows 11 entwickelt und für Windows 11 vorgesehen. Andere Betriebssysteme sind für diesen Stand nicht als Zielplattform abgenommen. Eine Arch-Linux-spezialisierte Version soll in einem separaten, noch anzulegenden Branch entstehen; keine Arch-Linux-Freigabe für `main` behaupten.
-- **Offline-v1 Architektur:** Versioniertes Sample/Schema, Contract-Normalisierung, Herkunftsangaben (Provenance), Redaktion vertraulicher Daten (Secrets/Credentials in CLI-Befehlen und HTTP-Status). Optionaler manueller Pi-JSONL-Exporter übernimmt ausschließlich anonymisierte Metadaten.
-- **Opt-in Pi-Live-Modus:** `pi-dashboard-extension.mjs` meldet Lebenszeichen, Pi-Lifecycle-Zustand, bekannten Anbieter/Modellfamilie (keine rohe Modell-ID), bekannte Standard-Werkzeugnamen und bei Verfügbarkeit Kontextschätzung über einen exklusiven, atomaren Writer (`scripts/live-pi-writer.mjs`). Zusätzlich: gültiger Pi-Sitzungs-/Agentenlaufstart, feste Lifecycle-Ereignisse, numerische Token-Summen aus dem aktiven Zweig, aktive Shell-/Dateiwerkzeuge und lokale Node-/Windows-Build-Angaben. Arbeitsverzeichnis und lokales Git-Repository/Branch nur mit `PI_DASHBOARD_INCLUDE_WORKSPACE=1` veröffentlichen (LAN ist ohne Anmeldung). Keine Prompts, Sitzungspfade/-IDs, Berechtigungsannahmen oder Kontoquoten aus diesen Messungen ableiten. Manuelle Quota-Zeit bleibt über Heartbeats erhalten. Ohne Pi-Extension bleibt die Sample-/Datei-Logik unverändert; isolierter Pi-RPC-Start/Ende erfolgreich, produktiver Agentenlauf noch nicht abgenommen.
-- **HTTP-Server:** Standardmäßig Loopback; expliziter RFC1918-IPv4-LAN-Modus per `--host` für den einzelnen Besitzer. Routing-Allowlist, Host/Origin/CSP-Schutz, redigierter Status, Sample-Fallback. LAN-Modus hat keine Anmeldung/TLS; Firewall und Router-Konfiguration sind nicht geprüft.
-- **Store & Refresh:** Polling, Timeout-Handling, Retention des letzten validen Snapshots bei Fehler.
-- **UI (HTML/CSS/JS):** 9 Abschnitte, zentraler Status, Hell/Dunkel-Theme, A11y-Grundgerüst (WCAG A/AA via axe-core in Playwright verifiziert). Modell & Anbieter prominent auf den ersten Blick im Kopfbereich und in der Übersichtskachel; grafische Quota-Meters für ChatGPT/OpenAI-Limits (5h- und Weekly-Limit).
-- **Dokumentation & Verträge:** `CONTRACT.md`, `README.md`, `VERIFICATION.md`, `HANDOFF.md` und `TELEMETRY.md`; letztere trennt Sitzungsnutzung von Account-/API-Quoten und beschreibt nur geplante, nicht implementierte externe Adapter.
+1. **Gemini Notebook Rohdaten-Extraktion (`docs/adeptus-mechanicus-raw.txt`):**
+   - 64 KiB vollständiger Lore-Korpus aus Google Gemini Notebook (`ROH_58`, Universal Laws, binharic liturgical phrasing) über Chromium Remote Debugging Protocol (CDP) extrahiert und archiviert.
 
-## Bestätigte Prüfungen (in der aktuellen Sitzung re-validiert)
+2. **Interaktives Kommandozentrum (`POST /api/action` & `pi-dashboard-extension.mjs`):**
+   - **Sicherer Backend-Endpunkt:** Loopback- und Same-Origin-Validierung (`allowedHosts`, `Origin`, `sec-fetch-site`).
+   - ⚡ **"Litanei des Lösens (Fix it)":** Verfügbar in der Hero Blocker/Fehler-Kachel, in Sektion 09 und direkt an individuellen Blocker-/Issue-Einträgen. Schreibt Aktionsbefehle an `agent-actions.json`, die von der laufenden Pi-Extension per `pi.sendUserMessage()` direkt verarbeitet werden.
+   - 🔄 **OpenAI Limit-Reset einlösen:** Fragt verbleibende Bonus-Credits via OpenAI Wham API ab (`get_reset_credits`), bietet einen modalen Bestätigungsdialog mit Guthabenanzeige und löst 1 Credit via `POST /backend-api/wham/rate-limit-reset-credits/consume` ein (`reset_openai_quota`), gefolgt von sofortiger Quota-Aktualisierung.
+   - 📡 **Noosphären-Sync:** Manueller Sofortabruf der Quotas (Google & OpenAI) on-demand.
+   - 🛑 **Not-Halt (Agenten-Abbruch):** Prominenter Not-Halt-Knopf im Header (`#btn-abort-header`) sowie in der Aktionsleiste; triggert `pi.abort()`.
+   - 🧹 **Speicher-Pneumatik (Compact):** Kontext-Kompaktierungsbefehl in Sektion 06 (`card-usage`), triggert `pi.compact()`.
+   - 📦 **Skill / Extension installieren:** Inline-Modal-Dialog in Sektion 03 (`card-capabilities`) mit Regex-Paketnamensvalidierung (`^[a-zA-Z0-9@/._-]+$`) und Ausführung von `pi install <pkg>`, ergänzt durch Direktlink 🌐 "pi.dev/packages durchstöbern ↗".
+   - 🔔 **Liturgisches Aktions-Banner (`.action-toast`):** Informiert über Erfolg, Wartezustand oder Fehler ausgeführter Riten mit automatischem Dismiss.
 
-- `npm run check`: Syntax-Check von 23 JS-Dateien erfolgreich.
-- `npm test`: **90 von 90 Tests bestanden** (59 Contract, 6 Browser-Quota-Sync, 8 Live-Tests, 5 Exporter, 5 HTTP/Server und 7 Store).
-- `npm run schema:check`: Ajv-Schema-Kompilierung und Negativtest-Suite erfolgreich.
-- `npm run status:validate`: Sample-JSON ist schema-konform.
-- `npm run smoke`: Standard-Loopback-Serverstart über `npm start -- --port 0` mit Allowlist- & Routing-Regeln verifiziert; LAN-Host/Origin separat mit simulierten HTTP-Anfragen geprüft, keine Abnahme über ein zweites Gerät.
-- `npm run test:browser`: Playwright E2E-Lauf (Chromium) inklusive Accessibility (axe WCAG A/AA), Key-Redaktions-Checks, Live-Lebenszeichen (aktiv/veraltet/beendet), Modell-auf-den-ersten-Blick, grafischer ChatGPT-Limits, Layout-/A11y-Prüfungen bei 1200/768/390px, Dunkelmodus und `prefers-reduced-motion` erfolgreich. Manuelle Abnahme bleibt offen.
-- `git status`: Vor Commit/Push den aktuellen Arbeitsbaum erneut prüfen; die letzte Baseline war `98a56f7` auf `main`.
+3. **Navigation — Variante 1: Sticky-Pill-Leiste:**
+   - Prominente horizontale Navigationsleiste (`nav.section-nav.sticky-nav`) mit Zahnrad-Symbolen (`⚙ 01` bis `⚙ 09`) und liturgischen Kurztiteln.
+   - **Dynamische Status-Indikatoren (`.pill-dot[data-state]`):** Roter Glüheffekt bei Blockern/Anomalien, bernsteinfarbener Glüheffekt bei Quota-Warnungen, pulsierendes Grün bei aktiver Arbeit.
+   - **Zielkarten-Fokus:** Sanftes Scrollen mit aufmerksamkeitsstarkem Hervorhebungsblitz (`@keyframes card-flash`).
+   - **Axe Contrast Timing Fix:** Vermeidung von Farb-/Hintergrund-Transitions auf `.nav-pill`, wodurch Themeswitching verzögerungsfrei und 100% WCAG-konform erfolgt.
 
-## Strategischer Fahrplan für die Wiederaufnahme (Nächste Phasen)
+4. **Kontingente (Quotas):**
+   - Strikt auf die beiden freigegebenen Anbieter **Google** und **OpenAI** begrenzt.
 
-### Phase 1: Härtung & Live-Daten-Adapter (v1 Finalisierung)
-1. **Multi-Device & A11y Härtung:**
-   - Automatisierte Prüfungen für `prefers-reduced-motion` und 1200/768/390px in `scripts/browser-check.mjs` ergänzt und bestanden.
-   - **Offen:** Manuelle Screenreader-, Tastatur- und visuelle Abnahme an realen Geräten.
-2. **Minimaler Pi-Status-Generator (`scripts/generate-pi-status.mjs`):**
-   - Implementiert: explizite JSONL-Auswahl, begrenztes Lesen, Whitelist-Metadaten, `--dry-run`/`--write`, atomarer Schreibpfad und synthetische Regressionstests.
-   - **Offen:** kontrollierte Abnahme mit einer ausdrücklich durch `--extension` gestarteten echten Pi-Instanz sowie einem zweiten LAN-Gerät. Aktive Pi-Erkennung erfolgt nur für diese Instanz, keine automatische Sitzungssuche; weitere Live-Werte erst nach eigener Herkunftsprüfung.
+5. **Grimdark Adeptus Mechanicus Asset Kit & Design:**
+   - **Medaillon (`assets/skull-cog-medallion.jpg`):** Massives Bronze- und Schwarzgusseisen-Zahnrad mit Grünspan-Patina, bionischem Halbschädel und grün leuchtender Sensor-Linse im Header.
+   - **Reinheitssiegel (`assets/purity-seal.jpg`):** Physisches rotes Wachssiegel mit Opus-Machina-Prägung und Pergament-Gebetsbändern an der Hero-Kachel und Canticle 09.
+   - **Schematiken / Blueprints:**
+     - Canticle 02: Cranial Cogitator Schematik (`assets/schematic-skull.jpg`) mit CAD-Vektorbemaßung, Synapsenmatrix und Titankern.
+     - Canticle 05: Oculus Mechanicus Sensor-Array (`assets/schematic-eye.jpg`) mit asphärischer Linsenarchitektur und Nervenbündelkabelbaum.
+   - **Chassis-Plinthe (`assets/mech-footer-plinth.svg`):** Maschinengusseiserner Sockel mit 45°-Kühllamellen, Zahnrad-Fassung und eingraviertem Credo Omnissiah.
+   - **Design & Layout:** 45-Grad abgeschrägte Ecken (`clip-path`), Ecken-Nietanker (`.card-rivet`), CRT-Scanlines & Koordinatengitter, Google Fonts `Cinzel Decorative` & `Share Tech Mono`.
+   - **DOM-Sicherheit:** Alle Grafiken im `#dashboard` werden als CSS-Hintergrundbilder gerendert, um den Sicherheitscheck (`#dashboard img === 0`) strikt einzuhalten.
 
-### Phase 2: Feature-Erweiterungen (v1.1 / v2)
-3. **Interaktive Activity-Timeline & Filter:**
-   - Status- und Kategorie-Filter sowie Suche in Zusammenfassung/Kategorie im UI vorhanden und im Browsertest geprüft.
-   - **Offen:** weitergehende Timeline-Interaktion nach konkreter Spezifikation.
-4. **Anonymisierter Snapshot-Export:**
-   - **Offen:** Export-Schaltfläche `("Snapshot anonymisiert herunterladen")` für Diagnose-Zwecke; Datenschutzgrenzen und ausdrückliche Freigabe vor Einführung klären.
+6. **Server & Launcher (`server.mjs`, `scripts/launch-observatory.sh`):**
+   - Bindet standardmäßig an `127.0.0.1:4318`.
+   - Serviert binäre und SVG-Assets über gesicherte Routen-Allowlist.
+   - Startskripte öffnen KDE Konsole-Tabs für Server und Pi-Sitzung.
 
----
+## Bestätigte Prüfungen
 
-## Empfohlene Sub-Agenten-Aufteilung für die Wiederaufnahme
-
-Für die Fortführung der Arbeiten stehen folgende spezialisierte Sub-Agenten bereit:
-
-1. **`Agent Alpha` (UI & Accessibility):**
-   - *Fokus:* `index.html`, `styles.css`, `scripts/browser-check.mjs`.
-   - *Aufgabe:* A11y-Schärfung, Viewport-Matrix, `prefers-reduced-motion`.
-2. **`Agent Beta` (Live-Data Adapter):**
-   - *Fokus:* `scripts/generate-pi-status.mjs`, `agent-status.schema.json`.
-   - *Aufgabe:* Lokaler Log-Parser für anonymisierte Pi-Session-Snapshots.
-3. **`Agent Gamma` (Security & Redaction Auditor):**
-   - *Fokus:* `server.mjs`, `app.mjs`, `test/contract.test.mjs`.
-   - *Aufgabe:* Adversarial Fuzzing & Redaktions-Engine-Prüfung.
-4. **`Agent Delta` (Timeline & Analytics):**
-   - *Fokus:* `app.mjs`, `index.html`, `styles.css`.
-   - *Aufgabe:* Activity-Timeline, Filter-System und Snapshot-Export.
+- `npm test`: **97 von 97 Tests bestanden** (100%).
+- `npm run check`: **27 JavaScript-Dateien syntaxgeprüft**; DOM-Senken-Guard (kein `innerHTML`, `outerHTML`, etc.) und Schemakonformität bestätigt.
+- `npm run schema:check`: Ajv-Schema-Kompilierung im Strict-Modus und Negativtests bestanden.
+- `npm run status:validate`: Validierung erfolgreich.
+- `npm run smoke`: Serverstart mit Loopback, Routing-Allowlist und Origin-Blockierung verifiziert.
+- `npm run test:browser`: Playwright E2E-Lauf (Chromium) inklusive Barrierefreiheit (Axe-Core WCAG A/AA), Breakpoints 1200px, 768px, 390px, Dark- und Light-Theme vollständig bestanden.
 
 ---
 
 ## Anweisung zur Wiederaufnahme
 
 Bei Start einer neuen Sitzung:
-1. Verzeichnis betreten: `cd D:/imp-projekte/Pi-Dashboard`
-2. Git-Status und Remote verifizieren: `git status --short --branch && git remote get-url origin`
-3. Handoff lesen: `read HANDOFF.md`
-4. Test-Suite ausführen: `npm test && npm run check && npm run schema:check && npm run smoke && npm run test:browser`
-5. Die Arbeit anhand des oben stehenden Sub-Agenten-Fahrplans fortsetzen.
+1. Verzeichnis betreten: `cd /home/imp/Dokumente/imp-projekte/pi-dashboard`
+2. Git-Status und Branch prüfen: `git status --short --branch && git branch --show-current` (muss auf `antiG-work` sein)
+3. Handoff lesen: `cat HANDOFF.md`
+4. Test-Suite ausführen: `npm test && npm run check && npm run smoke`
+

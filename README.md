@@ -2,7 +2,7 @@
 
 **Plattform:** Dieses Dashboard wurde unter **Windows 11** entwickelt und ist für **Windows 11** vorgesehen. Die dokumentierten Start- und Integrationswege beziehen sich auf diese Zielplattform. Andere Betriebssysteme sind für diesen Stand nicht als unterstützte Zielplattform geprüft; aus der Nutzung plattformübergreifender Technik folgt keine Linux-Freigabe. Eine auf **Arch Linux** spezialisierte Version ist für einen **separaten, noch anzulegenden Branch** vorgesehen. Dieser Branch und seine Anpassungen sind nicht Bestandteil des aktuellen Stands.
 
-Ein lokal oder im eigenen LAN nutzbares, nur lesendes Dashboard für **bereitgestellte** Agenten-Snapshots. Ohne ausdrücklich gestartete Pi-Extension erkennt es keinen laufenden Agenten; es sendet keine Daten an einen Onlinedienst. Nutzung durch einen einzelnen Besitzer ist vorgesehen; der LAN-Modus hat jedoch **keine Anmeldung** und ist von anderen Geräten im gleichen Netz erreichbar. **Zwischenstand:** HTTP- und automatisierte Browsertests wurden durchgeführt; eine manuelle visuelle und vollständige Tastatur-Abnahme steht noch aus. Reproduzierbare Ergebnisse und offene Punkte stehen in `VERIFICATION.md` und `HANDOFF.md`.
+Ein lokal oder im eigenen LAN nutzbares, nur lesendes Dashboard für **bereitgestellte** Agenten-Snapshots. Ohne ausdrücklich gestartete Pi-Extension erkennt es keinen laufenden Agenten. Der Dashboard-Server und die UI arbeiten lokal; der optionale Quota-Sync ist die bewusst aktivierte Online-Ausnahme und fragt Anbieter-Endpunkte mit den lokal vorhandenen Pi-OAuth-Daten ab. Nutzung durch einen einzelnen Besitzer ist vorgesehen; der LAN-Modus hat jedoch **keine Anmeldung** und ist von anderen Geräten im gleichen Netz erreichbar. **Zwischenstand:** HTTP- und automatisierte Browsertests wurden durchgeführt; eine manuelle visuelle und vollständige Tastatur-Abnahme steht noch aus. Reproduzierbare Ergebnisse und offene Punkte stehen in `VERIFICATION.md` und `HANDOFF.md`.
 
 ## Start und Prüfungen
 
@@ -24,7 +24,66 @@ npm test
 npm run schema:check
 ```
 
-`status:validate` prüft ohne Argument das Beispiel; mit Pfad eine Statusdatei **innerhalb des Projektordners**. `npm run schema:check` benötigt die Entwicklungsabhängigkeit `ajv` (`npm install` bei Bedarf); die anderen Offline-Laufzeitpfade benötigen keine Laufzeitpakete. `npm run smoke` prüft die lokalen HTTP-Routen; `npm run test:browser` benötigt zusätzlich installierte Entwicklungsabhängigkeiten (`playwright-core`, `axe-core`) und einen lokalen Chrome-/Edge-/Chromium-Browser, gegebenenfalls via `BROWSER_PATH`. Tatsächliche Testläufe sind in `VERIFICATION.md` protokolliert; ein Statusfeld `checks.status="passed"` darf niemals allein aus diesem README abgeleitet werden.
+`status:validate` prüft ohne Argument das Beispiel; mit Pfad eine Statusdatei **innerhalb des Projektordners**. `npm run schema:check` benötigt die Entwicklungsabhängigkeit `ajv` (`npm install` bei Bedarf); die anderen Offline-Laufzeitpfade benötigen keine Laufzeitpakete. Die Pi-Live-Extension importiert den Quota-Adapter und benötigt deshalb ein installiertes `node_modules` (`npm ci` oder `npm install`), auch wenn zunächst nur der direkte Quota-Abruf genutzt wird. `npm run smoke` prüft die lokalen HTTP-Routen; `npm run test:browser` benötigt zusätzlich einen lokalen Chrome-/Edge-/Chromium-Browser, gegebenenfalls via `BROWSER_PATH`. Tatsächliche Testläufe sind in `VERIFICATION.md` protokolliert; ein Statusfeld `checks.status="passed"` darf niemals allein aus diesem README abgeleitet werden.
+
+## CachyOS/KDE: aktueller Startweg
+
+Der Branch `antiG-work` enthält einen auf die aktuelle CachyOS-Arbeitsstation zugeschnittenen Starter. Voraussetzungen sind Node.js >= 22, npm, Pi im `PATH`, KDE Konsole, fish und `xdg-open`. Einmalig beziehungsweise nach Änderungen an `package-lock.json`:
+
+```sh
+cd /home/imp/Dokumente/imp-projekte/pi-dashboard
+npm ci
+```
+
+Danach startet ein Aufruf beide benötigten Prozesse und öffnet das Dashboard:
+
+```sh
+./scripts/launch-observatory.sh
+```
+
+Der Starter öffnet KDE Konsole mit zwei Tabs aus `scripts/konsole-tabs.txt`:
+
+1. `scripts/start-server.sh` startet den lokalen Server auf `http://127.0.0.1:4318/`.
+2. `scripts/start-pi.sh` wartet kurz und startet Pi mit `pi-dashboard-extension.mjs`.
+3. `xdg-open` öffnet parallel das Dashboard im Standardbrowser. Nach dem Beenden von Server oder Pi bleibt der jeweilige fish-Tab zur Diagnose geöffnet.
+
+Die vier Starterdateien enthalten derzeit absichtlich den absoluten Pfad `/home/imp/Dokumente/imp-projekte/pi-dashboard`. Bei einem anderen Checkout-Pfad müssen `scripts/launch-observatory.sh`, `scripts/konsole-tabs.txt`, `scripts/start-server.sh` und `scripts/start-pi.sh` angepasst werden. Der Launcher kann direkt als Ziel einer KDE-Desktop-Verknüpfung verwendet werden. Falls die Ausführungsrechte nach Kopieren oder Entpacken fehlen:
+
+```sh
+chmod +x scripts/launch-observatory.sh scripts/start-server.sh scripts/start-pi.sh
+```
+
+Manueller Fallback in zwei Terminals:
+
+```sh
+# Terminal 1
+cd /home/imp/Dokumente/imp-projekte/pi-dashboard
+npm start
+
+# Terminal 2
+cd /home/imp/Dokumente/imp-projekte/pi-dashboard
+pi --extension "$PWD/pi-dashboard-extension.mjs"
+```
+
+Anschließend `http://127.0.0.1:4318/` öffnen. Der CachyOS-Starter beginnt bewusst eine neue Pi-Sitzung. Soll stattdessen die letzte Sitzung dieses Arbeitsverzeichnisses fortgesetzt werden, Pi nach Prüfung des Arbeitsverzeichnisses manuell mit zusätzlichem `--continue` starten.
+
+## Zuletzt umgesetzt (`CachyOS` → `antiG-work`)
+
+- **Adeptus Mechanicus Kommandozentrum (Opus Machina · ROH_58):** Authentische Tech-Priest-Ästhetik (Martian Crimson, Antique Brass, Adamantine Slate, binharische Ticker, Credo Omnissiah).
+- **Navigation (Variante 1 — Sticky-Pill-Leiste):** Horizontale Leiste mit Zahnrad-Badges (`⚙ 01` bis `⚙ 09`), dynamischen Status-Indikatorpunkten (Glüh-Effekte bei Anomalien oder Quota-Warnungen, Puls bei Aktivität) und Zielkarten-Hervorhebung.
+- **Interaktive Aktions-Schaltflächen (`POST /api/action`):**
+  - ⚡ *Litanei des Lösens (Fix it)* in der Blocker-Kachel, in Sektion 09 sowie direkt an individuellen Blocker-/Issue-Karten.
+  - 🔄 *OpenAI Limit-Reset einlösen* (Abruf der Bonus-Credits, Bestätigungsdialog, Einlösen via Wham API mit automatischem Quota-Refresh).
+  - 📡 *Noosphären-Sync* (Manueller Quota-Sofortabruf).
+  - 🛑 *Not-Halt (Agenten-Abbruch)* im Header und in der Aktionsleiste.
+  - 🧹 *Speicher-Pneumatik (Compact)* in Sektion 06.
+  - 📦 *Skill / Extension installieren* in Sektion 03 inklusive Direktlink zu `pi.dev/packages`.
+- **Kontingente:** Strikt auf Google und OpenAI fokussiert.
+- Direkter Quota-Abruf für OpenAI und Google aus den lokalen Pi-OAuth-Daten; Browser-Scraping bleibt als Fallback verfügbar.
+- Automatischer Quota-Abgleich beim Start der Pi-Extension, danach alle fünf Minuten sowie nach abgeschlossenen Agentenläufen; Provider-Rate-Limit-Header werden zusätzlich passiv ausgewertet.
+- Erweiterte Aktivitäts-Timeline mit Sortierung, Auf-/Zuklappen, Filter-Reset und relativen Zeitangaben.
+- Anonymisierter Diagnose-Export über die UI sowie per `npm run export:diagnostics` oder `npm run export:stdout`.
+- CachyOS/KDE-Starter mit getrennten Konsole-Tabs für Server und Pi-Live-Sitzung; der Zielport ist `4318`.
 
 ## Datenquelle und Format
 
@@ -59,18 +118,26 @@ Die Uhrzeiten im Beispiel sind **nur Formatbeispiele**, keine aktuelle Messung. 
 In einem Terminal den Dashboard-Server mit `npm start` im Projektordner starten. In einem **zweiten** Terminal Pi mit der Projekt-Extension starten, beispielsweise aus dem Arbeitsverzeichnis der gewünschten Pi-Sitzung:
 
 ```sh
-pi --extension "D:/imp-projekte/Pi-Dashboard/pi-dashboard-extension.mjs" --continue
+cd /home/imp/Dokumente/imp-projekte/pi-dashboard
+pi --extension "$PWD/pi-dashboard-extension.mjs"
 ```
 
+<<<<<<< HEAD
 Der gezeigte Windows-Pfad ist ein Beispiel aus der Entwicklungsumgebung; ersetzen Sie ihn durch den absoluten Pfad zu Ihrer eigenen Projektkopie. `--continue` nur verwenden, wenn die letzte Sitzung dieses Arbeitsverzeichnisses fortgesetzt werden soll. Eine bereits laufende Pi-Instanz nicht gleichzeitig mit derselben Sitzung nochmals starten: erst regulär beenden, dann fortsetzen. Alternativ Pi ohne `--continue` mit der Extension neu starten. Die Extension wird **nur für diese Pi-Instanz** geladen; weder globale Pi-Einstellungen noch andere Prozesse werden automatisch verändert. Das Dashboard unter `http://127.0.0.1:4318/` öffnen, oder den dokumentierten privaten LAN-Host wählen. Die Pi-Instanz selbst benötigt weiterhin ihre eigene Modell-/Netzwerkverbindung; der Dashboard-Server bleibt rein lokal.
 
 Die Extension schreibt alle drei Sekunden einen validierten, atomar ersetzten `agent-status.json` mit Lebenszeichen, Agentenzustand (`in Arbeit`, `wartet`, `bereit` oder `fehlgeschlagen`), ausgewähltem Anbieter (nur fest bekannte Namen), erkannter **Modellfamilie statt roher Modell-ID**, bekannten aktiven Standard-Werkzeugnamen (kein vollständiges Custom-Tool-Inventar), Pi-Laufmodus und — sofern von Pi erfasst — Kontextfenster sowie **geschätzter** Belegung. Zusätzlich erfasst sie den gültigen Sitzungsstart und den Beginn des letzten Agentenlaufs, feste Lifecycle-Ereignisse (maximal 20), aktive Shell-/Dateiwerkzeuge, Node.js-Version, unter Windows den erkennbaren OS-Build sowie numerische Eingabe-/Ausgabe-Tokens aus dem **aktiven Pi-Sitzungszweig**. Diese Token-Werte sind keine Kontoquoten und kein vollständiger anbieterübergreifender Verbrauchsnachweis; ohne gemeldete Nutzungsdaten bleiben sie unbekannt. Sie übernimmt **keine** Prompts, Tool-Argumente/-Ausgaben, rohe Modell-IDs oder benutzerdefinierte Tool-Namen, Credentials, Sitzungs-IDs, Dateipfade, Kosten oder ausgeführte Prüfnachweise. Nicht erhobene Werte bleiben „Nicht verfügbar". Bei regulärem Pi-Ende erscheint „Pi-Sitzung beendet“; fehlt ein Lebenszeichen länger als zwölf Sekunden, zeigt das Dashboard statt eines alten Arbeitsstatus „Pi-Verbindung unterbrochen“. Das ist keine Garantie, dass ein abgestürzter Prozess korrekt beendet wurde. `goal`, `step`, `progress`, konkrete Freigaben, Skills und Artefakte werden bewusst nicht aus potenziell sensiblen Prompts oder Logs erraten; sie brauchen eine ausdrücklich freigegebene, datensparsame Quelle. **Opt-in für Arbeitsverzeichnis und Git-Repository/Branch:** Vor dem Start der Pi-Extension unter PowerShell `$env:PI_DASHBOARD_INCLUDE_WORKSPACE='1'` setzen und Pi aus diesem Terminal starten; danach mit `Remove-Item Env:PI_DASHBOARD_INCLUDE_WORKSPACE` wieder entfernen. Die Extension fragt dann einmalig die lokale Git-Wurzel und den Branch ab (keine Remote-URL) und veröffentlicht auch den vollständigen Arbeitsverzeichnispfad. Ohne Opt-in bleiben diese Felder leer. Pfade und Branch-Namen können personenbezogene oder vertrauliche Informationen enthalten und sind im LAN **ohne Anmeldung** sichtbar: dort diese Freigabe nur nach bewusster Prüfung verwenden. Git-Ausfall oder Detached HEAD lassen nicht belegte Felder leer. Auch ein aktives Werkzeug belegt **keine** Schreib-/Netzwerkberechtigung. Die Laufzeitangaben betreffen den Pi-Prozess, nicht automatisch den beobachteten Modellanbieter.
+=======
+`--continue` nur zusätzlich verwenden, wenn die letzte Sitzung dieses Arbeitsverzeichnisses fortgesetzt werden soll. Eine bereits laufende Pi-Instanz nicht gleichzeitig mit derselben Sitzung nochmals starten: erst regulär beenden, dann fortsetzen. Der CachyOS-Starter beginnt standardmäßig ohne `--continue` eine neue Sitzung. Die Extension wird **nur für diese Pi-Instanz** geladen; weder globale Pi-Einstellungen noch andere Prozesse werden automatisch verändert. Das Dashboard unter `http://127.0.0.1:4318/` öffnen, oder den dokumentierten privaten LAN-Host wählen. Die Pi-Instanz selbst benötigt weiterhin ihre eigene Modell-/Netzwerkverbindung; der Dashboard-Server bleibt rein lokal.
+
+Die Extension schreibt alle drei Sekunden einen validierten, atomar ersetzten `agent-status.json` mit Lebenszeichen, Agentenzustand (`in Arbeit`, `wartet`, `bereit` oder `fehlgeschlagen`), ausgewähltem Anbieter (nur fest bekannte Namen), erkannter Modellfamilie und — nur bei einem einfachen, unverdächtigen Zeichenformat — der von Pi gemeldeten Modell-ID, bekannten aktiven Standard-Werkzeugnamen (kein vollständiges Custom-Tool-Inventar), Pi-Laufmodus und — sofern von Pi erfasst — Kontextfenster sowie **geschätzter** Belegung. Sie übernimmt **keine** Prompts, Tool-Argumente/-Ausgaben, benutzerdefinierten Tool-Namen, Credentials, Sitzungs-IDs, Dateipfade, Token-Gesamtsummen, Kosten oder ausgeführte Prüfnachweise. Nicht erhobene Werte bleiben „Nicht verfügbar“. Bei regulärem Pi-Ende erscheint „Pi-Sitzung beendet“; fehlt ein Lebenszeichen länger als zwölf Sekunden, zeigt das Dashboard statt eines alten Arbeitsstatus „Pi-Verbindung unterbrochen“. Das ist keine Garantie, dass ein abgestürzter Prozess korrekt beendet wurde.
+>>>>>>> origin/antiG-work
 
 Es gibt nur **einen** Live-Writer je Dashboard-Statusdatei. Er hält `agent-status.lock` während der Pi-Sitzung; der manuelle JSONL-Exporter darf währenddessen nicht schreiben. Nach einem Absturz kann die Sperre verwaisen: nur wenn sicher kein Live-Writer mehr läuft, `agent-status.lock` manuell entfernen. Der aktuelle Pi-Prozess nimmt die Extension nicht rückwirkend auf; die Aktivierung muss dort erfolgen, wo die gewünschte Sitzung gestartet wird. Automatische Tests nutzen synthetische Events; zusätzlich wurde Start/Ende einer isolierten Pi-RPC-Instanz **ohne Modellanfrage** erfolgreich geprüft. Ein echter Agentenlauf in der gewünschten produktiven Sitzung steht noch aus.
 
-### Modell auf den ersten Blick & ChatGPT-Account-Limits (5h / Wöchentlich)
+### Modell, Anbieter und Kontingente auf den ersten Blick
 
 - **Modell & Anbieter:** Werden direkt im Kopfbereich (Modell-Badge) und in der ersten Kachel der vierreihigen Übersicht („Aktives Modell & Anbieter“) unmittelbar ohne Scrollen angezeigt.
+<<<<<<< HEAD
 - **ChatGPT-Quotas (5-Stunden- und wöchentliches Limit):** Wenn OpenAI als Provider aktiv ist oder Quotas übergeben wurden, zeigt das Dashboard zwei grafische Fortschrittsbalken mit verbleibenden Prozentwerten und Reset-Zeitangaben (sowohl in der Übersicht als auch in Bereich 06 „Kontext & Verbrauch“).
 - **Warum keine automatische Online-Abfrage von `chatgpt.com/settings/usage?tab=overview`?**
   OpenAI stellt die persönlichen Kontoquotas aus den ChatGPT-Web-Einstellungen **nicht** über eine offene Programmierschnittstelle bereit. Die Seite liegt hinter Cloudflare-Bot-Schutz und erfordert eine aktive Browser-Web-Sitzung (`__Secure-next-auth.session-token`). Der Dashboard-Server ist zudem strikt offline ausgelegt und sendet keine Netzwerkanfragen ins Internet.
@@ -82,6 +149,13 @@ Es gibt nur **einen** Live-Writer je Dashboard-Statusdatei. Er hält `agent-stat
   3. *Über die Kommandozeile manuell:* Ohne laufende Extension `npm run status:limits -- --5h 85 --weekly 60 --reset-5h "18:00 UTC"` ausführen. Eine manuelle Quota-Änderung erneuert **nur die Quellzeit dieses Messwerts**, nicht den Zeitstempel eines älteren Pi-Snapshots. Ohne bestehende Statusdatei wird kein Modell/Anbieter erfunden.
 
 Die Grenzen zwischen Pi-Sitzungsverbrauch, ChatGPT-Abo-Limits und OpenAI-/Google-API-Quoten sowie mögliche künftige Adapter stehen in `TELEMETRY.md`. Account-Limits werden vom Dashboard-Server selbst nicht abgefragt.
+=======
+- **OpenAI-/Google-Quotas:** Wenn Kontingente vorliegen, zeigt das Dashboard grafische Fortschrittsbalken mit verbleibenden Prozentwerten und Reset-Zeitangaben in der Übersicht sowie in Bereich 06 „Kontext & Verbrauch“.
+- **Bevorzugter Direktsync:** `npm run quota:sync` liest die lokale Pi-Anmeldung aus `~/.pi/agent/auth.json` und fragt zuerst `https://chatgpt.com/backend-api/wham/usage` (OpenAI) oder `https://cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels` (Google) ab. `npm run quota:direct` erzwingt diesen Weg ohne Browser-Fallback. OpenAI kann dafür ersatzweise `pi auth print-bearer-token` aufrufen. Bei Google kann ein abgelaufenes OAuth-Token über `https://oauth2.googleapis.com/token` erneuert und anschließend in `auth.json` aktualisiert werden. Diese Befehle sind daher keine reine Offline-Funktion.
+- **Browser-Fallback:** Scheitert der Direktsync, kann Playwright ein dauerhaftes Profil unter `~/.config/pi-agent-observatory/quota-browser-profile` verwenden. Einmalig anmelden mit `npm run quota:login -- openai` beziehungsweise `npm run quota:login -- google`; nur der Browserweg benötigt einen lokal installierten Chromium/Chrome/Brave oder `BROWSER_PATH`.
+- **Pi-Integration:** `/limits sync` stößt den Sync aus der mit der Extension gestarteten Pi-Sitzung an. Zusätzlich synchronisiert die Extension beim Sitzungsstart, standardmäßig alle fünf Minuten und nach `agent_settled`/`agent_end`; Fehler unterbrechen den Agentenlauf nicht. Der Hook `after_provider_response` übernimmt vorhandene Rate-Limit-Header, ohne deren Vorhandensein zu erzwingen.
+- **Manuelle Vorgabe:** `/limits <5h-%> <Woche-%> [Reset-Zeit]`, zum Beispiel `/limits 85 60 "18:00 UTC"`; zurücksetzen mit `/limits reset`. Ohne laufende Extension steht `npm run status:limits -- --5h 85 --weekly 60 --reset-5h "18:00 UTC"` zur Verfügung.
+>>>>>>> origin/antiG-work
 
 ## Optionaler lokaler Pi-JSONL-Export (minimal)
 
@@ -117,9 +191,11 @@ Fortschritt nur als `{completed, total, basis}` mit `total > 0`, `0 <= completed
 
 Die Übersicht vor den Bereichen fasst Status, Auftrag, Probleme und beide Zeitstempel zusammen. Die Renderer-Implementierung enthält Listen, Aktivitätssuche/-filter und Prüfnachweise für die Bereiche 7–9; die automatisierte Browserprüfung ist in `VERIFICATION.md` beschrieben. Keiner der Bereiche ist eine automatische Pi-Inspektion.
 
-## Atomare Updates durch einen Agenten
+## Atomare Updates durch einen Agenten und Aktions-Endpunkt
 
-Es gibt keine Schreib-API. Nur ein ausdrücklich autorisierter lokaler Agent/Exporter soll einen vollständigen, datensparsamen Snapshot erzeugen. **Nie** `agent-status.json` an Ort und Stelle bearbeiten; der Server könnte einen halben JSON-Stand lesen. Die Vorlage unten prüft `agent-status.lock` **nicht**: während die Pi-Live-Extension läuft, darf sie nicht verwendet werden. Bei weiteren Schreibern zusätzlich einen einzigen Writer oder eine externe Sperre vereinbaren; atomare Umbenennung allein schützt nicht vor konkurrierenden Updates.
+Für Status-Snapshots gibt es keine allgemeine HTTP-Schreib-API: der Server überschreibt `agent-status.json` nicht unkontrolliert. Nur ein ausdrücklich autorisierter lokaler Agent/Exporter soll vollständige, datensparsame Snapshots erzeugen. Zur operativen Steuerung (Not-Halt, Litanei des Lösens, Speicher-Pneumatik, Quota-Sync) stellt der Server den streng validierten Endpunkt `POST /api/action` (mit Loopback- und Same-Origin-Prüfung) bereit, welcher Steuerkommandos an die laufende Pi-Instanz vermittelt.
+
+**Nie** `agent-status.json` an Ort und Stelle manuell bearbeiten; der Server könnte einen halben JSON-Stand lesen. Die Vorlage unten prüft `agent-status.lock` **nicht**: während die Pi-Live-Extension läuft, darf sie nicht verwendet werden. Bei weiteren Schreibern zusätzlich einen einzigen Writer oder eine externe Sperre vereinbaren; atomare Umbenennung allein schützt nicht vor konkurrierenden Updates.
 
 Für einen eigenen Aktualisierer: Quelle vorbereiten, `parseStatus` aus `src/contract.mjs` aufrufen, `dataset === "live"` und `observedAt` prüfen, normalisiertes JSON in eine **eindeutige temporäre Datei im selben Projektordner** schreiben, die geschriebene Datei nochmals parsen und erst danach auf `agent-status.json` umbenennen. Schlägt eine Stufe fehl, temporäre Datei entfernen und den letzten gültigen Stand belassen. Die Vorlage unten in der Projektwurzel als **lokales, nicht mitgeliefertes** `update-status-local.mjs` speichern; nur eine vertrauenswürdige, bereits freigegebene Quelldatei übergeben. Die lokale Hilfsdatei nicht committen und nach Gebrauch entfernen.
 
@@ -151,7 +227,7 @@ Im Projektordner ausführen: `node update-status-local.mjs <Pfad-zur-freigegeben
 
 ## Datenschutz und Vertrauensgrenzen
 
-Server: standardmäßig Loopback, LAN-Bindung nur mit expliziter privater IPv4-Adresse; schreibgeschützte Routen-Allowlist, `GET`/`HEAD`, Host-/Origin-/Cross-Site-Prüfung, kein CORS, restriktive CSP und keine fremden Netzwerkanfragen. Im LAN gibt es **keine Authentifizierung und kein TLS**: Host-/Origin-Prüfungen sind keine Zugriffskontrolle für andere LAN-Geräte. Nur in einem vertrauten Netz mit passend auf das private Netz begrenzter Firewall-Freigabe verwenden, keine Router-Portweiterleitung/Internetfreigabe aktivieren und keine Geheimnisse in Statusdaten aufnehmen. Eine private Bind-Adresse allein beweist keine Nichterreichbarkeit über falsch konfigurierte Weiterleitungen. Keine beliebigen Workspace-Dateien oder rohe Status-/Beispieldateien über HTTP. JSON wird serverseitig normalisiert/redigiert und vor DOM-Ausgabe erneut redigiert; das ist **keine vollständige DLP-Garantie**. Quellen, Freitext, Dateipfade, Sitzungsbezeichner, Aktivität und Check-Befehle vor dem Schreiben minimieren; niemals API-Keys, Passwörter, Cookies, Tokens, Umgebungsvariablen, private Logs oder vollständige Prompts aufnehmen. Auch lokaler Browserzugriff und lokale Dateien sind keine Geheimnisablage.
+Dashboard-Server: standardmäßig Loopback, LAN-Bindung nur mit expliziter privater IPv4-Adresse; schreibgeschützte Routen-Allowlist, `GET`/`HEAD`, Host-/Origin-/Cross-Site-Prüfung, kein CORS, restriktive CSP und selbst keine fremden Netzwerkanfragen. Der separat aufgerufene Quota-Adapter und die Pi-Extension mit aktivem Auto-Sync sind die dokumentierte Online-Ausnahme und kommunizieren mit den oben genannten Anbieter-Endpunkten. Im LAN gibt es **keine Authentifizierung und kein TLS**: Host-/Origin-Prüfungen sind keine Zugriffskontrolle für andere LAN-Geräte. Nur in einem vertrauten Netz mit passend auf das private Netz begrenzter Firewall-Freigabe verwenden, keine Router-Portweiterleitung/Internetfreigabe aktivieren und keine Geheimnisse in Statusdaten aufnehmen. Eine private Bind-Adresse allein beweist keine Nichterreichbarkeit über falsch konfigurierte Weiterleitungen. Keine beliebigen Workspace-Dateien oder rohe Status-/Beispieldateien über HTTP. JSON wird serverseitig normalisiert/redigiert und vor DOM-Ausgabe erneut redigiert; das ist **keine vollständige DLP-Garantie**. Quellen, Freitext, Dateipfade, Sitzungsbezeichner, Aktivität und Check-Befehle vor dem Schreiben minimieren; niemals API-Keys, Passwörter, Cookies, Tokens, Umgebungsvariablen, private Logs oder vollständige Prompts aufnehmen. Auch lokaler Browserzugriff und lokale Dateien sind keine Geheimnisablage.
 
 **Store-Fehlergrenze:** Regressionstests prüfen fremde `fetchFn`-Fehler mit `Status token=DEMO_SECRET` sowie manipulierte HTTP-Status-/Content-Type-Werte direkt in `state.error`. Ein fehlgeschlagener Test gilt als Sicherheitsbefund, selbst wenn ein zusätzlicher Render-Redaktionsschritt die Anzeige absichert. Der lokale Testlauf belegt nur diese geprüften Fälle, keine umfassende DLP-Garantie.
 
@@ -162,7 +238,9 @@ Server: standardmäßig Loopback, LAN-Bindung nur mit expliziter privater IPv4-A
 - HTTP 422 bei `/status.json`: Vorhandene Datei auf JSON, Version `1.0`, Struktur, Größe und Datumsangaben prüfen; `npm run status:validate -- agent-status.json`. Keine stille Rückkehr auf das Beispiel.
 - HTTP 422 bei `/config.json`: `config.json` auf Ganzzahlen und Wertebereiche prüfen; dann Seite erneut laden.
 - Altes Datum trotz erfolgreichem Abruf: `observedAt` der **Quelle** aktualisieren, nicht nur den Browser neu laden.
-- Port belegt: mit `npm start -- --port 4319` einen anderen Port wählen. Bei LAN-Zugriffsproblemen die tatsächliche IPv4 des Server-Rechners, den im Startprotokoll genannten Host/Port und die lokale Firewall für das private Netz prüfen; ohne `--host` ist nur `http://127.0.0.1:<Port>/` erreichbar.
+- Port belegt: mit `npm start -- --port 4319` einen anderen Port wählen. Der CachyOS-Launcher und sein Browser-Aufruf sind derzeit fest auf `4318` eingestellt und müssen bei einer Portänderung ebenfalls angepasst werden. Bei LAN-Zugriffsproblemen die tatsächliche IPv4 des Server-Rechners, den im Startprotokoll genannten Host/Port und die lokale Firewall für das private Netz prüfen; ohne `--host` ist nur `http://127.0.0.1:<Port>/` erreichbar.
+- CachyOS-Launcher startet nicht: Ausführungsrechte, die absoluten Pfade, `/usr/bin/konsole`, `/usr/bin/fish`, `pi` im `PATH` und ein erfolgreiches `npm ci` prüfen. Die Skripte öffnen GUI-Prozesse und sind nicht für headless SSH-Sitzungen gedacht; dort den manuellen Zwei-Terminal-Start verwenden.
+- Quota-Sync schlägt fehl: zuerst `npm run quota:direct`; bei fehlenden/abgelaufenen lokalen Pi-Anmeldedaten den Provider in Pi neu authentifizieren oder den Browser-Fallback mit `npm run quota:login -- <openai|google>` vorbereiten. Niemals `auth.json` oder das Browserprofil committen.
 - Fehlgeschlagener Store-Sicherheitstest: keine Secrets in Fehlertexte liefern; Store-Grenze muss unabhängig vom Renderer repariert und erneut geprüft werden (nicht als bestandenen Check ausgeben).
 
-**Explizit zurückgestellt:** Online-Anreicherung, externe APIs/Badges, Credentials-Adapter, automatische Pi-Logsuche oder Integration ohne explizit gestartete Extension, Fernsteuerung, Cloud-Speicher, externe Telemetrie und Multi-Agent-Flottenfunktionen. Der Dashboard-Server liest weiterhin nur die lokale Statusquelle.
+**Explizit zurückgestellt:** weitere Online-Anreicherung außerhalb des dokumentierten Quota-Syncs, öffentliche APIs/Badges, automatische Pi-Logsuche oder Integration ohne ausdrücklich gestartete Extension, Fernsteuerung, Cloud-Speicher, externe Telemetrie und Multi-Agent-Flottenfunktionen. Der Dashboard-Server liest weiterhin nur die lokale Statusquelle.

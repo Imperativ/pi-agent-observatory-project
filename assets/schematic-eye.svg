@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 260" width="380" height="260">
+  <defs>
+    <filter id="eye-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.8" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <g stroke="#00ff41" stroke-linecap="round" stroke-linejoin="round" filter="url(#eye-glow)">
+    <!-- GRID / REFERENCE CENTER -->
+    <line x1="20" y1="130" x2="360" y2="130" stroke="#008f26" stroke-width="0.5" stroke-dasharray="2 6" opacity="0.4"/>
+    <line x1="140" y1="20" x2="140" y2="240" stroke="#008f26" stroke-width="0.5" stroke-dasharray="2 6" opacity="0.4"/>
+
+    <!-- OCULAR GLOBE (Cross-section) -->
+    <!-- Outer Sclera / Titanium Armor Hull -->
+    <path d="
+      M 70 82
+      C 100 48, 185 45, 215 85
+      C 235 110, 235 150, 215 175
+      C 185 215, 100 212, 70 178
+      C 56 160, 48 145, 48 130
+      C 48 115, 56 100, 70 82
+      Z
+    " fill="rgba(0, 255, 65, 0.03)" stroke="#00ff41" stroke-width="1.8"/>
+
+    <!-- Inner Protective Lining / Sensor Layer -->
+    <path d="
+      M 78 88
+      C 105 58, 178 55, 205 92
+      C 222 112, 222 148, 205 168
+      C 178 205, 105 202, 78 172
+      C 66 156, 58 144, 58 130
+      C 58 116, 66 104, 78 88
+      Z
+    " fill="none" stroke="#008f26" stroke-width="1" stroke-dasharray="5 3"/>
+
+    <!-- Retina Sensor Hatching (Multi-spectral Sensor Bands) -->
+    <path d="M 120 62 C 145 62, 195 75, 210 105" fill="none" stroke="#00ff41" stroke-width="0.8" opacity="0.7"/>
+    <path d="M 120 72 C 145 72, 188 85, 202 115" fill="none" stroke="#00ff41" stroke-width="0.8" opacity="0.7"/>
+    <path d="M 120 198 C 145 198, 195 185, 210 155" fill="none" stroke="#00ff41" stroke-width="0.8" opacity="0.7"/>
+    <path d="M 120 188 C 145 188, 188 175, 202 145" fill="none" stroke="#00ff41" stroke-width="0.8" opacity="0.7"/>
+
+    <!-- FRONT OPTICAL ASSEMBLY (Cornea, Crystalline Lenses & Aperture) -->
+    <!-- Anterior Lens Housing (Outer Bezel) -->
+    <path d="M 72 80 C 45 92, 30 110, 30 130 C 30 150, 45 168, 72 180" fill="none" stroke="#00ff41" stroke-width="2"/>
+    <path d="M 62 88 C 42 98, 38 112, 38 130 C 38 148, 42 162, 62 172" fill="rgba(0,255,65,0.06)" stroke="#00ff41" stroke-width="1.2"/>
+
+    <!-- Compound Aspheric Lens Elements (Convex & Concave) -->
+    <path d="M 68 96 C 54 108, 54 152, 68 164 C 74 152, 74 108, 68 96 Z" fill="rgba(0,255,65,0.15)" stroke="#00ff41" stroke-width="1.4"/>
+    <path d="M 85 92 C 75 106, 75 154, 85 168 C 95 154, 95 106, 85 92 Z" fill="rgba(0,255,65,0.1)" stroke="#00ff41" stroke-width="1.2"/>
+
+    <!-- Iris Aperture Blades & Focal Gate -->
+    <line x1="96" y1="78" x2="96" y2="108" stroke="#00ff41" stroke-width="2.5"/>
+    <line x1="96" y1="152" x2="96" y2="182" stroke="#00ff41" stroke-width="2.5"/>
+    <line x1="96" y1="108" x2="104" y2="114" stroke="#f0cb68" stroke-width="1.5"/>
+    <line x1="96" y1="152" x2="104" y2="146" stroke="#f0cb68" stroke-width="1.5"/>
+
+    <!-- Vitreous Focal Lens (Internal Spherical Core) -->
+    <circle cx="132" cy="130" r="32" fill="rgba(0,255,65,0.05)" stroke="#00ff41" stroke-width="1.5"/>
+    <circle cx="132" cy="130" r="18" fill="rgba(0,255,65,0.12)" stroke="#008f26" stroke-width="1" stroke-dasharray="4 2"/>
+    <circle cx="132" cy="130" r="6" fill="#00ff41" stroke="#ffffff" stroke-width="1"/>
+
+    <!-- Light Rays / Ray Tracing Vectors -->
+    <line x1="15" y1="110" x2="68" y2="120" stroke="#00ff41" stroke-width="0.8" stroke-dasharray="3 3"/>
+    <line x1="15" y1="150" x2="68" y2="140" stroke="#00ff41" stroke-width="0.8" stroke-dasharray="3 3"/>
+    <line x1="68" y1="120" x2="132" y2="130" stroke="#00ff41" stroke-width="0.8"/>
+    <line x1="68" y1="140" x2="132" y2="130" stroke="#00ff41" stroke-width="0.8"/>
+    <line x1="132" y1="130" x2="216" y2="115" stroke="#00ff41" stroke-width="0.8"/>
+    <line x1="132" y1="130" x2="216" y2="145" stroke="#00ff41" stroke-width="0.8"/>
+
+    <!-- POSTERIOR OPTIC NERVE & CYBERNETIC CABLE BUS -->
+    <!-- Rear Coupling Flange / Collar -->
+    <rect x="220" y="112" width="12" height="36" rx="2" fill="rgba(0,255,65,0.15)" stroke="#00ff41" stroke-width="1.5"/>
+    <!-- Bolted studs on collar -->
+    <circle cx="226" cy="118" r="1.5" fill="#f0cb68"/>
+    <circle cx="226" cy="130" r="1.5" fill="#f0cb68"/>
+    <circle cx="226" cy="142" r="1.5" fill="#f0cb68"/>
+
+    <!-- Multi-Cable Conduit Trunk (Snake Conduits to Brain) -->
+    <!-- Conduit 1 -->
+    <path d="M 232 120 C 270 120, 290 95, 345 88" fill="none" stroke="#00ff41" stroke-width="3" stroke-dasharray="4 2"/>
+    <!-- Conduit 2 (Main Neural Fiber Bus) -->
+    <path d="M 232 130 C 265 130, 295 130, 355 130" fill="none" stroke="#00ff41" stroke-width="4"/>
+    <!-- Conduit 3 -->
+    <path d="M 232 140 C 270 140, 290 165, 345 172" fill="none" stroke="#00ff41" stroke-width="3" stroke-dasharray="4 2"/>
+
+    <!-- Data Braiding Rings -->
+    <line x1="265" y1="112" x2="265" y2="148" stroke="#f0cb68" stroke-width="1.5"/>
+    <line x1="305" y1="102" x2="305" y2="158" stroke="#f0cb68" stroke-width="1.5"/>
+
+    <!-- HUD CALLOUT LEADER LINES -->
+    <!-- Lens Callout -->
+    <polyline points="72,76 85,45 125,45" fill="none" stroke="#00ff41" stroke-width="0.8"/>
+    <circle cx="72" cy="76" r="2.5" fill="#00ff41"/>
+
+    <!-- Aperture Callout -->
+    <polyline points="96,70 115,30 185,30" fill="none" stroke="#00ff41" stroke-width="0.8"/>
+    <circle cx="96" cy="70" r="2.5" fill="#00ff41"/>
+
+    <!-- Optic Bus Callout -->
+    <polyline points="280,126 300,195 340,195" fill="none" stroke="#00ff41" stroke-width="0.8"/>
+    <circle cx="280" cy="126" r="2.5" fill="#00ff41"/>
+  </g>
+
+  <!-- TECHNICAL LABELS -->
+  <g font-family="'Share Tech Mono', monospace" fill="#00ff41" font-size="8.5" letter-spacing="1">
+    <text x="130" y="42" opacity="0.95">LENS ELEM // ASPHERIC f/0.95</text>
+    <text x="190" y="28" fill="#f0cb68" font-size="8">IRIS APERTURE // AUTO-FLUX</text>
+    <text x="260" y="208" opacity="0.9">NEURAL BUS // 1024-CH VOX</text>
+    <text x="260" y="218" fill="#008f26" font-size="7">SYNAPSE BAND: 128 THz</text>
+
+    <!-- Specs Box Bottom Left -->
+    <text x="35" y="225" font-size="8" fill="#00ff41">OCULUS MECHANICUS // MK-VII</text>
+    <text x="35" y="235" font-size="7" fill="#008f26">SPEC: MULTI-SPECTRUM BIO-OPTIC</text>
+    <text x="35" y="245" font-size="6.5" fill="#008f26">LATENCY: 0.04ms · PROTOCOL: OMNI-LINK</text>
+  </g>
+</svg>

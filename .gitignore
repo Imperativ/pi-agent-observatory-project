@@ -6,3 +6,4 @@ agent-status.lock
 test-results/
 playwright-report/
 *.log
+diagnostics-export.json

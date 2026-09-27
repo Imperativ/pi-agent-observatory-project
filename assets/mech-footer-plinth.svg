@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 64" width="1000" height="64" preserveAspectRatio="none">
+  <defs>
+    <linearGradient id="plinth-bronze" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#e5b842"/>
+      <stop offset="15%" stop-color="#c59b27"/>
+      <stop offset="60%" stop-color="#7a5c12"/>
+      <stop offset="90%" stop-color="#402f08"/>
+      <stop offset="100%" stop-color="#1f1603"/>
+    </linearGradient>
+    <linearGradient id="bevel-edge" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f0cb68"/>
+      <stop offset="50%" stop-color="#c59b27"/>
+      <stop offset="100%" stop-color="#f0cb68"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Left Main Wing Plinth -->
+  <polygon points="
+    40,18
+    430,18
+    440,32
+    460,32
+    460,54
+    20,54
+    20,38
+    40,18
+  " fill="url(#plinth-bronze)" stroke="#2b2005" stroke-width="1.5"/>
+
+  <!-- Left Top Highlight Lip -->
+  <polyline points="40,18 430,18" stroke="url(#bevel-edge)" stroke-width="2"/>
+
+  <!-- Left Angled Heat Vents (45° Slots) -->
+  <g fill="#050705" stroke="#402f08" stroke-width="0.8">
+    <polygon points="120,24 135,24 125,48 110,48"/>
+    <polygon points="150,24 165,24 155,48 140,48"/>
+    <polygon points="180,24 195,24 185,48 170,48"/>
+    <polygon points="210,24 225,24 215,48 200,48"/>
+    <!-- Binary line inside vent section -->
+    <text x="240" y="40" font-family="'Share Tech Mono', monospace" font-size="9" fill="#00ff41" opacity="0.6">01001111 01001101</text>
+  </g>
+
+  <!-- Left Hex Rivets -->
+  <circle cx="50" cy="38" r="3" fill="#f0cb68" stroke="#332204" stroke-width="1"/>
+  <circle cx="75" cy="38" r="3" fill="#f0cb68" stroke="#332204" stroke-width="1"/>
+  <circle cx="410" cy="38" r="3" fill="#f0cb68" stroke="#332204" stroke-width="1"/>
+
+  <!-- Right Main Wing Plinth -->
+  <polygon points="
+    570,18
+    960,18
+    980,38
+    980,54
+    540,54
+    540,32
+    560,32
+    570,18
+  " fill="url(#plinth-bronze)" stroke="#2b2005" stroke-width="1.5"/>
+
+  <!-- Right Top Highlight Lip -->
+  <polyline points="570,18 960,18" stroke="url(#bevel-edge)" stroke-width="2"/>
+
+  <!-- Right Angled Heat Vents (45° Slots) -->
+  <g fill="#050705" stroke="#402f08" stroke-width="0.8">
+    <polygon points="790,24 805,24 795,48 780,48"/>
+    <polygon points="820,24 835,24 825,48 810,48"/>
+    <polygon points="850,24 865,24 855,48 840,48"/>
+    <polygon points="880,24 895,24 885,48 870,48"/>
+    <!-- Binary line inside vent section -->
+    <text x="630" y="40" font-family="'Share Tech Mono', monospace" font-size="9" fill="#00ff41" opacity="0.6">01001110 01001001</text>
+  </g>
+
+  <!-- Right Hex Rivets -->
+  <circle cx="590" cy="38" r="3" fill="#f0cb68" stroke="#332204" stroke-width="1"/>
+  <circle cx="925" cy="38" r="3" fill="#f0cb68" stroke="#332204" stroke-width="1"/>
+  <circle cx="950" cy="38" r="3" fill="#f0cb68" stroke="#332204" stroke-width="1"/>
+
+  <!-- Center Cog Cradle Arch Support -->
+  <path d="
+    M 440 32
+    Q 500 -12 560 32
+    L 540 54
+    L 460 54
+    Z
+  " fill="url(#plinth-bronze)" stroke="#2b2005" stroke-width="1.5"/>
+  <path d="M 450 36 Q 500 0 550 36" fill="none" stroke="#f0cb68" stroke-width="1.5"/>
+</svg>

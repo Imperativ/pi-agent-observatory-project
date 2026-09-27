@@ -1,0 +1,2 @@
+title: Observatory Server ;; workdir: /home/imp/Dokumente/imp-projekte/pi-dashboard ;; command: /home/imp/Dokumente/imp-projekte/pi-dashboard/scripts/start-server.sh
+title: Pi Agent (Live) ;; workdir: /home/imp/Dokumente/imp-projekte/pi-dashboard ;; command: /home/imp/Dokumente/imp-projekte/pi-dashboard/scripts/start-pi.sh
