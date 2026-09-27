@@ -7,13 +7,13 @@
 # ==============================================================================
 
 DIR="/home/imp/Dokumente/imp-projekte/pi-dashboard"
-TABS_FILE="$DIR/scripts/konsole-tabs.txt"
+TABS_FILE="/home/imp/Dokumente/imp-projekte/pi-dashboard/scripts/konsole-tabs.txt"
 
 # Optional: Nach 1.2 Sekunden Browser mit dem lokalen Dashboard öffnen
 (
   sleep 1.2
   if command -v xdg-open >/dev/null 2>&1; then
-    xdg-open "http://127.0.0.1:3000" >/dev/null 2>&1 || true
+    xdg-open "http://127.0.0.1:4318" >/dev/null 2>&1 || true
   fi
 ) &
 

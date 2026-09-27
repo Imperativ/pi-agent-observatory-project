@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <defs>
+    <radialGradient id="rivet-head" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#fff0aa"/>
+      <stop offset="30%" stop-color="#e5b842"/>
+      <stop offset="70%" stop-color="#8a6715"/>
+      <stop offset="100%" stop-color="#3d2a06"/>
+    </radialGradient>
+    <filter id="rivet-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="1" dy="1.5" stdDeviation="1.5" flood-color="#000000" flood-opacity="0.8"/>
+    </filter>
+  </defs>
+  <g filter="url(#rivet-shadow)">
+    <!-- Outer Hex / Chamfer Rim -->
+    <polygon points="12,2 19,6 19,18 12,22 5,18 5,6" fill="#2b1f06" stroke="#c59b27" stroke-width="0.8"/>
+    <!-- Dome Rivet Head -->
+    <circle cx="12" cy="12" r="7.5" fill="url(#rivet-head)" stroke="#3d2a06" stroke-width="0.8"/>
+    <!-- Center Hex Indent / Socket -->
+    <polygon points="12,9 14.5,10.5 14.5,13.5 12,15 9.5,13.5 9.5,10.5" fill="#1b1202"/>
+  </g>
+</svg>

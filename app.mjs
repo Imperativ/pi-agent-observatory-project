@@ -162,6 +162,22 @@ export function startDashboard(documentRef = document, windowRef = window) {
   }
   exportButton?.addEventListener('click', triggerExport);
 
+  const abortButton = documentRef.getElementById('btn-abort-header');
+  async function triggerAbort() {
+    if (!windowRef.confirm('Soll der laufende Agenten-Vorgang sofort abgebrochen werden (Maschinengeist Not-Halt)?')) return;
+    try {
+      await windowRef.fetch('/api/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'abort_agent' })
+      });
+      windowRef.alert('Maschinengeist Not-Halt an Pi übermittelt.');
+    } catch (err) {
+      windowRef.alert('Not-Halt fehlgeschlagen: ' + err.message);
+    }
+  }
+  abortButton?.addEventListener('click', triggerAbort);
+
   function stop() {
     stopped = true;
     windowRef.clearTimeout(pollTimer);

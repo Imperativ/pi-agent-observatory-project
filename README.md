@@ -67,11 +67,21 @@ Anschließend `http://127.0.0.1:4318/` öffnen. Der CachyOS-Starter beginnt bewu
 
 ## Zuletzt umgesetzt (`CachyOS` → `antiG-work`)
 
+- **Adeptus Mechanicus Kommandozentrum (Opus Machina · ROH_58):** Authentische Tech-Priest-Ästhetik (Martian Crimson, Antique Brass, Adamantine Slate, binharische Ticker, Credo Omnissiah).
+- **Navigation (Variante 1 — Sticky-Pill-Leiste):** Horizontale Leiste mit Zahnrad-Badges (`⚙ 01` bis `⚙ 09`), dynamischen Status-Indikatorpunkten (Glüh-Effekte bei Anomalien oder Quota-Warnungen, Puls bei Aktivität) und Zielkarten-Hervorhebung.
+- **Interaktive Aktions-Schaltflächen (`POST /api/action`):**
+  - ⚡ *Litanei des Lösens (Fix it)* in der Blocker-Kachel, in Sektion 09 sowie direkt an individuellen Blocker-/Issue-Karten.
+  - 🔄 *OpenAI Limit-Reset einlösen* (Abruf der Bonus-Credits, Bestätigungsdialog, Einlösen via Wham API mit automatischem Quota-Refresh).
+  - 📡 *Noosphären-Sync* (Manueller Quota-Sofortabruf).
+  - 🛑 *Not-Halt (Agenten-Abbruch)* im Header und in der Aktionsleiste.
+  - 🧹 *Speicher-Pneumatik (Compact)* in Sektion 06.
+  - 📦 *Skill / Extension installieren* in Sektion 03 inklusive Direktlink zu `pi.dev/packages`.
+- **Kontingente:** Strikt auf Google und OpenAI fokussiert.
 - Direkter Quota-Abruf für OpenAI und Google aus den lokalen Pi-OAuth-Daten; Browser-Scraping bleibt als Fallback verfügbar.
 - Automatischer Quota-Abgleich beim Start der Pi-Extension, danach alle fünf Minuten sowie nach abgeschlossenen Agentenläufen; Provider-Rate-Limit-Header werden zusätzlich passiv ausgewertet.
 - Erweiterte Aktivitäts-Timeline mit Sortierung, Auf-/Zuklappen, Filter-Reset und relativen Zeitangaben.
 - Anonymisierter Diagnose-Export über die UI sowie per `npm run export:diagnostics` oder `npm run export:stdout`.
-- CachyOS/KDE-Starter mit getrennten Konsole-Tabs für Server und Pi-Live-Sitzung; der zuletzt korrigierte Zielport ist `4318`.
+- CachyOS/KDE-Starter mit getrennten Konsole-Tabs für Server und Pi-Live-Sitzung; der Zielport ist `4318`.
 
 ## Datenquelle und Format
 
@@ -159,9 +169,11 @@ Fortschritt nur als `{completed, total, basis}` mit `total > 0`, `0 <= completed
 
 Die Übersicht vor den Bereichen fasst Status, Auftrag, Probleme und beide Zeitstempel zusammen. Die Renderer-Implementierung enthält Listen, Aktivitätssuche/-filter und Prüfnachweise für die Bereiche 7–9; die automatisierte Browserprüfung ist in `VERIFICATION.md` beschrieben. Keiner der Bereiche ist eine automatische Pi-Inspektion.
 
-## Atomare Updates durch einen Agenten
+## Atomare Updates durch einen Agenten und Aktions-Endpunkt
 
-Es gibt keine Schreib-API. Nur ein ausdrücklich autorisierter lokaler Agent/Exporter soll einen vollständigen, datensparsamen Snapshot erzeugen. **Nie** `agent-status.json` an Ort und Stelle bearbeiten; der Server könnte einen halben JSON-Stand lesen. Die Vorlage unten prüft `agent-status.lock` **nicht**: während die Pi-Live-Extension läuft, darf sie nicht verwendet werden. Bei weiteren Schreibern zusätzlich einen einzigen Writer oder eine externe Sperre vereinbaren; atomare Umbenennung allein schützt nicht vor konkurrierenden Updates.
+Für Status-Snapshots gibt es keine allgemeine HTTP-Schreib-API: der Server überschreibt `agent-status.json` nicht unkontrolliert. Nur ein ausdrücklich autorisierter lokaler Agent/Exporter soll vollständige, datensparsame Snapshots erzeugen. Zur operativen Steuerung (Not-Halt, Litanei des Lösens, Speicher-Pneumatik, Quota-Sync) stellt der Server den streng validierten Endpunkt `POST /api/action` (mit Loopback- und Same-Origin-Prüfung) bereit, welcher Steuerkommandos an die laufende Pi-Instanz vermittelt.
+
+**Nie** `agent-status.json` an Ort und Stelle manuell bearbeiten; der Server könnte einen halben JSON-Stand lesen. Die Vorlage unten prüft `agent-status.lock` **nicht**: während die Pi-Live-Extension läuft, darf sie nicht verwendet werden. Bei weiteren Schreibern zusätzlich einen einzigen Writer oder eine externe Sperre vereinbaren; atomare Umbenennung allein schützt nicht vor konkurrierenden Updates.
 
 Für einen eigenen Aktualisierer: Quelle vorbereiten, `parseStatus` aus `src/contract.mjs` aufrufen, `dataset === "live"` und `observedAt` prüfen, normalisiertes JSON in eine **eindeutige temporäre Datei im selben Projektordner** schreiben, die geschriebene Datei nochmals parsen und erst danach auf `agent-status.json` umbenennen. Schlägt eine Stufe fehl, temporäre Datei entfernen und den letzten gültigen Stand belassen. Die Vorlage unten in der Projektwurzel als **lokales, nicht mitgeliefertes** `update-status-local.mjs` speichern; nur eine vertrauenswürdige, bereits freigegebene Quelldatei übergeben. Die lokale Hilfsdatei nicht committen und nach Gebrauch entfernen.
 

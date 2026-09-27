@@ -230,3 +230,69 @@ test('extension captures after_provider_response and triggers quota sync on agen
   assert.equal(emitted.at(-1).assignment.state.value, 'idle');
 });
 
+test('live extension captures full 9 sections, Mistral/Devstral model family, artifacts and check evidence', async () => {
+  const handlers = new Map();
+  const emitted = [];
+  createLiveExtension({
+    on: (type, fn) => { handlers.set(type, fn); },
+    getActiveTools: () => ['read', 'bash', 'edit', 'write'],
+    getCommands: () => [{name: 'limits'}, {name: 'clear'}, {name: 'debug'}],
+  }, async () => ({
+    publish: async data => { emitted.push(createLiveSnapshot({...data, now: time})); },
+    close: async () => {},
+  }), {
+    fetchQuotaFn: async () => null,
+    quotaSyncIntervalMs: 0,
+  });
+
+  const ctx = {
+    cwd: '/test/workspace',
+    mode: 'tui',
+    isIdle: () => false,
+    hasUI: false,
+    model: {provider: 'mistral', id: 'devstral-latest', contextWindow: 262144},
+    getContextUsage: () => ({tokens: 1234, contextWindow: 262144}),
+    sessionManager: {
+      getSessionId: () => 'sess-1234',
+      getHeader: () => ({timestamp: '2026-01-01T11:00:00Z'}),
+      getEntries: () => [
+        {type: 'message', message: {role: 'user', content: 'Fix it: Blocker im Test beheben\n- [x] Schritt 1\n- [ ] Schritt 2'}}
+      ],
+    },
+  };
+
+  // Start session
+  await handlers.get('session_start')({}, ctx);
+  const snap1 = emitted.at(-1);
+  assert.equal(snap1.identity.provider.value, 'Mistral');
+  assert.equal(snap1.identity.model.value, 'Mistral (Modellfamilie)');
+  assert.equal(snap1.identity.modelVersion.value, 'devstral-latest');
+  assert.equal(snap1.identity.sessionId.value, 'sess-1234');
+  assert.equal(snap1.environment.cwd.value, '/test/workspace');
+  assert.ok(snap1.checks.length > 0, 'Initial check is seeded');
+  assert.equal(snap1.checks[0].status, 'passed');
+
+  // Start agent turn
+  await handlers.get('agent_start')({}, ctx);
+  const snap2 = emitted.at(-1);
+  assert.equal(snap2.assignment.goal.value, 'Fix it: Blocker im Test beheben');
+  assert.deepEqual(snap2.assignment.progress.value, {completed: 1, total: 2, basis: '1 von 2 Aufgaben erledigt'});
+
+  // Tool execution (edit tool)
+  await handlers.get('tool_execution_start')({toolCallId: 't1', toolName: 'edit', args: {path: 'src/app.mjs'}}, ctx);
+  await handlers.get('tool_execution_end')({toolCallId: 't1', toolName: 'edit', result: {isError: false}}, ctx);
+  const snap3 = emitted.at(-1);
+  assert.ok(snap3.artifacts.some(a => a.path.includes('app.mjs')), 'Artifact is captured from edit tool');
+
+  // Tool execution (bash test check)
+  await handlers.get('tool_execution_start')({toolCallId: 't2', toolName: 'bash', args: {command: 'npm test'}}, ctx);
+  await handlers.get('tool_execution_end')({toolCallId: 't2', toolName: 'bash', result: {details: {exitCode: 0}}}, ctx);
+  const snap4 = emitted.at(-1);
+  assert.ok(snap4.checks.some(c => c.name === 'npm test' && c.status === 'passed'), 'Check evidence is recorded for npm test');
+
+  // Activity stream validation
+  assert.ok(snap4.activity.length >= 3, 'Activity stream is populated');
+  assert.equal(snap4.activity[0].source, 'Pi-Extension');
+});
+
+

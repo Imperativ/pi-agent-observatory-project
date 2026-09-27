@@ -7,6 +7,9 @@
   <meta name="description" content="Lokales, schreibgeschütztes Agent Observatory. Zustand, Herkunft und Grenzen eines Agenten transparent beobachten.">
   <title>Agent Observatory · ROH_58</title>
   <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
   <script type="module" src="/app.mjs"></script>
 </head>
@@ -14,24 +17,38 @@
   <a class="skip-link" href="#inhalt">Zum Inhalt springen</a>
   <header class="site-header">
     <div class="brand">
-      <span class="brand-mark" aria-hidden="true">58</span>
-      <div><span class="brand-title">Agent Observatory</span><span class="brand-caption">ROH_58 · Observatorium / Nur lesen</span></div>
+      <img src="/assets/skull-cog-medallion.jpg" class="brand-avatar" alt="Opus Machina Medaillon" width="48" height="48">
+      <div>
+        <span class="brand-title">Agent Observatory // Omnissiah Vult</span>
+        <span class="brand-caption">ROH_58 · NOOSPHÄRISCHES OBSERVATORIUM // STATUS: NOMINAL</span>
+      </div>
     </div>
     <div class="header-actions">
-      <span class="local-label">LOKAL · OHNE TELEMETRIEVERSAND</span>
+      <span class="local-label">SANCTUM INTERNUM · LOKAL</span>
+      <button id="btn-abort-header" type="button" class="btn-action btn-danger" aria-label="Maschinengeist Not-Halt auslösen" title="Laufenden Agenten-Vorgang sofort abbrechen">🛑 Not-Halt</button>
       <button id="export-diagnostics" type="button" aria-label="Diagnose-Snapshot anonymisiert herunterladen">Diagnose-Export</button>
       <button id="reload" type="button">Neu laden</button>
       <button id="theme-toggle" type="button" aria-label="Farbschema wechseln">Farbschema</button>
     </div>
   </header>
+  <div class="binharic-streamer" aria-hidden="true">01001111 01001101 01001110 01001001 01010011 01010011 01001001 01000001 01001000 // SACROSANCT TELEMETRY // HEXAD::0x9A01 // TO BREAK WITH RITUAL IS TO BREAK WITH FAITH</div>
   <main id="inhalt" tabindex="-1">
-    <div id="config-status" class="notice" role="status" aria-live="polite">Lokale Konfiguration wird geprüft …</div>
+    <div id="config-status" class="notice" role="status" aria-live="polite">Noosphärische Verbindung wird initialisiert …</div>
     <noscript><p class="notice error">JavaScript ist erforderlich. Die Oberfläche liest ausschließlich die lokalen Endpunkte /config.json und /status.json. Bitte JavaScript aktivieren und diese Seite über den lokalen Server öffnen.</p></noscript>
     <div id="dashboard"></div>
   </main>
   <footer class="site-footer">
-    <span>ROH_58 / Bewahrung vor Veränderung</span>
-    <span>Nur lokale Statusdaten · Keine Steuerung des Agenten · Keine Online-Anreicherung</span>
+    <div class="footer-plinth-wrap" aria-hidden="true">
+      <img src="/assets/mech-footer-plinth.svg" class="footer-plinth-img" alt="">
+    </div>
+    <div class="footer-creed">
+      <p class="creed-verse">„Die Stärke des Stahls überdauert das Fleisch, und das Ritual ehrt den Maschinengeist. Es gibt keine Wahrheit im Fleisch, nur Verrat.“</p>
+      <p class="creed-sub">Credo Omnissiah · 16. Universelles Gesetz: To Break with Ritual is to Break with Faith.</p>
+    </div>
+    <div class="footer-meta">
+      <span>ROH_58 // Tempel von Allwissenheit</span>
+      <span>Lokale Noosphären-Telemetrie · Keine ungesegnete Datenweitergabe</span>
+    </div>
   </footer>
 </body>
 </html>
