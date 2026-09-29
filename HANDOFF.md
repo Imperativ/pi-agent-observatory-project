@@ -1,68 +1,92 @@
-# Übergabe / Zwischenstand — Pi Agent Observatory (Adeptus Mechanicus Edition)
+# Übergabe / Projektstand — Pi Agent Observatory · Opus Machina ROH_58
 
-## Auftrag, Autorisierung und Speicherort
+## 1. Auftrag, Autorisierung und Speicherort
 
-Der Magos hat das Dashboard von einem passiven Status-Viewer in ein interaktives **Adeptus Mechanicus Kommandozentrum (Opus Machina · ROH_58)** transformiert und auf GitHub im Branch `antiG-work` abgesichert.
+Das Projekt vereint zwei synergetische Säulen:
+1. **Das Web-Dashboard:** Interaktives Adeptus Mechanicus Kommandozentrum (Opus Machina · ROH_58) mit 9 liturgischen Sektionen, Quota-Verwaltung (Google/OpenAI), Not-Halt und Aktions-Riten.
+2. **Die Telegram Remote Bridge:** Abhörsichere, transaktionale Fernsteuerung für den lokalen Pi-Coding-Agenten via Outbound-Long-Polling (Bot API) ohne offene Ports oder Webhooks.
+
 - **Projektverzeichnis:** `/home/imp/Dokumente/imp-projekte/pi-dashboard` (CachyOS Linux)
 - **Git Remote:** `origin` -> `https://github.com/Imperativ/pi-agent-observatory-project.git`
-- **Aktiver Entwicklungsbranch:** `antiG-work`
-- **Verbindliche Design-Leitlinien:** Authentische Tech-Priest-Ästhetik (Martian Crimson `#9b1d20`, Antique Brass `#c89b3c`, Adamantine Slate `#0c0d10`, Sacred Binharic Streamer, 9 Canticles), strikte Barrierefreiheit (WCAG 2.1 AA auf allen Breakpoints), strikte DOM-Sicherheit (keine unsicheren DOM-Senken wie `innerHTML`).
-
-## Aktueller Implementierungsstand
-
-1. **Gemini Notebook Rohdaten-Extraktion (`docs/adeptus-mechanicus-raw.txt`):**
-   - 64 KiB vollständiger Lore-Korpus aus Google Gemini Notebook (`ROH_58`, Universal Laws, binharic liturgical phrasing) über Chromium Remote Debugging Protocol (CDP) extrahiert und archiviert.
-
-2. **Interaktives Kommandozentrum (`POST /api/action` & `pi-dashboard-extension.mjs`):**
-   - **Sicherer Backend-Endpunkt:** Loopback- und Same-Origin-Validierung (`allowedHosts`, `Origin`, `sec-fetch-site`).
-   - ⚡ **"Litanei des Lösens (Fix it)":** Verfügbar in der Hero Blocker/Fehler-Kachel, in Sektion 09 und direkt an individuellen Blocker-/Issue-Einträgen. Schreibt Aktionsbefehle an `agent-actions.json`, die von der laufenden Pi-Extension per `pi.sendUserMessage()` direkt verarbeitet werden.
-   - 🔄 **OpenAI Limit-Reset einlösen:** Fragt verbleibende Bonus-Credits via OpenAI Wham API ab (`get_reset_credits`), bietet einen modalen Bestätigungsdialog mit Guthabenanzeige und löst 1 Credit via `POST /backend-api/wham/rate-limit-reset-credits/consume` ein (`reset_openai_quota`), gefolgt von sofortiger Quota-Aktualisierung.
-   - 📡 **Noosphären-Sync:** Manueller Sofortabruf der Quotas (Google & OpenAI) on-demand.
-   - 🛑 **Not-Halt (Agenten-Abbruch):** Prominenter Not-Halt-Knopf im Header (`#btn-abort-header`) sowie in der Aktionsleiste; triggert `pi.abort()`.
-   - 🧹 **Speicher-Pneumatik (Compact):** Kontext-Kompaktierungsbefehl in Sektion 06 (`card-usage`), triggert `pi.compact()`.
-   - 📦 **Skill / Extension installieren:** Inline-Modal-Dialog in Sektion 03 (`card-capabilities`) mit Regex-Paketnamensvalidierung (`^[a-zA-Z0-9@/._-]+$`) und Ausführung von `pi install <pkg>`, ergänzt durch Direktlink 🌐 "pi.dev/packages durchstöbern ↗".
-   - 🔔 **Liturgisches Aktions-Banner (`.action-toast`):** Informiert über Erfolg, Wartezustand oder Fehler ausgeführter Riten mit automatischem Dismiss.
-
-3. **Navigation — Variante 1: Sticky-Pill-Leiste:**
-   - Prominente horizontale Navigationsleiste (`nav.section-nav.sticky-nav`) mit Zahnrad-Symbolen (`⚙ 01` bis `⚙ 09`) und liturgischen Kurztiteln.
-   - **Dynamische Status-Indikatoren (`.pill-dot[data-state]`):** Roter Glüheffekt bei Blockern/Anomalien, bernsteinfarbener Glüheffekt bei Quota-Warnungen, pulsierendes Grün bei aktiver Arbeit.
-   - **Zielkarten-Fokus:** Sanftes Scrollen mit aufmerksamkeitsstarkem Hervorhebungsblitz (`@keyframes card-flash`).
-   - **Axe Contrast Timing Fix:** Vermeidung von Farb-/Hintergrund-Transitions auf `.nav-pill`, wodurch Themeswitching verzögerungsfrei und 100% WCAG-konform erfolgt.
-
-4. **Kontingente (Quotas):**
-   - Strikt auf die beiden freigegebenen Anbieter **Google** und **OpenAI** begrenzt.
-
-5. **Grimdark Adeptus Mechanicus Asset Kit & Design:**
-   - **Medaillon (`assets/skull-cog-medallion.jpg`):** Massives Bronze- und Schwarzgusseisen-Zahnrad mit Grünspan-Patina, bionischem Halbschädel und grün leuchtender Sensor-Linse im Header.
-   - **Reinheitssiegel (`assets/purity-seal.jpg`):** Physisches rotes Wachssiegel mit Opus-Machina-Prägung und Pergament-Gebetsbändern an der Hero-Kachel und Canticle 09.
-   - **Schematiken / Blueprints:**
-     - Canticle 02: Cranial Cogitator Schematik (`assets/schematic-skull.jpg`) mit CAD-Vektorbemaßung, Synapsenmatrix und Titankern.
-     - Canticle 05: Oculus Mechanicus Sensor-Array (`assets/schematic-eye.jpg`) mit asphärischer Linsenarchitektur und Nervenbündelkabelbaum.
-   - **Chassis-Plinthe (`assets/mech-footer-plinth.svg`):** Maschinengusseiserner Sockel mit 45°-Kühllamellen, Zahnrad-Fassung und eingraviertem Credo Omnissiah.
-   - **Design & Layout:** 45-Grad abgeschrägte Ecken (`clip-path`), Ecken-Nietanker (`.card-rivet`), CRT-Scanlines & Koordinatengitter, Google Fonts `Cinzel Decorative` & `Share Tech Mono`.
-   - **DOM-Sicherheit:** Alle Grafiken im `#dashboard` werden als CSS-Hintergrundbilder gerendert, um den Sicherheitscheck (`#dashboard img === 0`) strikt einzuhalten.
-
-6. **Server & Launcher (`server.mjs`, `scripts/launch-observatory.sh`):**
-   - Bindet standardmäßig an `127.0.0.1:4318`.
-   - Serviert binäre und SVG-Assets über gesicherte Routen-Allowlist.
-   - Startskripte öffnen KDE Konsole-Tabs für Server und Pi-Sitzung.
-
-## Bestätigte Prüfungen
-
-- `npm test`: **97 von 97 Tests bestanden** (100%).
-- `npm run check`: **27 JavaScript-Dateien syntaxgeprüft**; DOM-Senken-Guard (kein `innerHTML`, `outerHTML`, etc.) und Schemakonformität bestätigt.
-- `npm run schema:check`: Ajv-Schema-Kompilierung im Strict-Modus und Negativtests bestanden.
-- `npm run status:validate`: Validierung erfolgreich.
-- `npm run smoke`: Serverstart mit Loopback, Routing-Allowlist und Origin-Blockierung verifiziert.
-- `npm run test:browser`: Playwright E2E-Lauf (Chromium) inklusive Barrierefreiheit (Axe-Core WCAG A/AA), Breakpoints 1200px, 768px, 390px, Dark- und Light-Theme vollständig bestanden.
+- **Aktiver Branch:** `main` (synchron mit `origin/main`)
+- **Letzter Stand:** Slice 1 und Slice 2 der Telegram-Bridge vollständig entworfen; Dashboard v1 produktionsreif und verifiziert.
+- **Artefakt-Isolation:** Der Planungs- und Entwurfsordner `.rpiv/` ist dauerhaft in `.gitignore` eingetragen und verbleibt strikt lokal auf dem Entwicklungsrechner.
 
 ---
 
-## Anweisung zur Wiederaufnahme
+## 2. Aktueller Implementierungs- & Designstand
+
+### Säule 1: Adeptus Mechanicus Dashboard (Produktionsreif auf `main`)
+- **Backend & Aktionen (`POST /api/action` & `pi-dashboard-extension.mjs`):**
+  - Loopback- und Same-Origin-Validierung (`allowedHosts`, `Origin`, `sec-fetch-site`).
+  - ⚡ *Litanei des Lösens (Fix it):* Schreibt Aktionen nach `agent-actions.json` zur direkten Abarbeitung durch Pi.
+  - 🔄 *OpenAI Limit-Reset einlösen:* Guthabenabfrage via Wham-API & Einlösung von Bonus-Credits.
+  - 📡 *Noosphären-Sync:* Sofortabruf von Quotas on-demand.
+  - 🛑 *Not-Halt (Agenten-Abbruch):* Sofortiges Beenden via `pi.abort()`.
+  - 🧹 *Speicher-Pneumatik (Compact):* Kontext-Kompaktierung via `pi.compact()`.
+  - 📦 *Skill / Extension installieren:* Inline-Modal mit Regex-Paketnamensvalidierung (`pi install <pkg>`).
+- **UI & Ästhetik:**
+  - Martian Crimson (`#9b1d20`), Antique Brass (`#c89b3c`), Adamantine Slate (`#0c0d10`).
+  - Horizontale Sticky-Pill-Navigationsleiste (`⚙ 01` bis `⚙ 09`) mit dynamischen Glüh-Indikatoren.
+  - Grimdark Asset Kit (Bronze-Schädel-Medaillon, Reinheitssiegel, CAD-Blueprints, Kühllamellen-Plinthe).
+  - Strikte DOM-Sicherheit (keine unsicheren Senken wie `innerHTML`, `#dashboard img === 0`).
+  - Barrierefreiheit: 100% WCAG 2.1 AA auf allen Breakpoints (1200px, 768px, 390px, Dark/Light-Theme).
+
+### Säule 2: Telegram Remote Bridge (Architektur & Slice-Fortschritt)
+- **Gesamtarchitektur:**
+  - Kommuniziert ausschließlich über ausgehende HTTPS-Requests (`getUpdates`, `sendMessage`) zur Telegram Bot API.
+  - Volle Betreiberautorität: Befehle des fest konfigurierten Nutzers (`Message.from.id` im privaten 1:1-Chat) besitzen dieselbe operative Berechtigung wie die lokale Konsole.
+  - Lokale SQLite-Datenbank (`node:sqlite`) unter `~/.config/pi-dashboard/bridge.db` (Dateirechte `0600`).
+  - Dashboard-Privacy: Keine Konversationsinhalte oder Telegram-Prompts gelangen in `agent-status.json` oder `/status.json`.
+
+- **Slice 1: Core Store, Telegram Ingress & Authorization (Design vollständig):**
+  - Transaktionales SQLite-Schema (`meta`, `tasks`, `history`, `questions`, `outbox_chunks`).
+  - Atomare Offset-Fortschreibung bei Inbound-Updates.
+  - Ingress-Router mit striktem User-Allowlisting und Typklassifizierung.
+  - Supervised Polling Loop (`poller.mjs`) mit Crash-Recovery und Backoff.
+  - Outbox-Chunker: Aufteilung in Blöcke <= 4096 UTF-16 Zeichen unter Erhalt von Markdown-Codeblöcken (` ``` `).
+  - Retry-Scheduler: Bounded Retries (5 Versuche über max. 15 Minuten: 15s, 60s, 180s, 660s).
+
+- **Slice 2: Pi RPC Supervision & Lifecycle Control (Design vollständig):**
+  - **`src/telegram/pi-rpc-client.mjs`:** Byte-genaues JSONL-Framing (Split nur bei `\n`, CRLF-Trimming, Schutz vor `U+2028`/`U+2029`). Asynchrone Request-Response-Korrelation (`rpc-<uuid>`) mit Timeouts. Vollständiges Event-Streaming (`agent_start`, `agent_settled`, `turn_end`, `message_update`, etc.).
+  - **`src/telegram/supervisor.mjs`:** Steuert exakt eine Pi-Kindinstanz (`pi --mode rpc --session-dir <cwd> --continue`). Stderr-Ringpuffer (50 Zeilen) für exakte Fehlerdiagnose ohne Vermischung mit stdout-JSONL. 5s Readiness-Probe via `getState()`. Graceful Shutdown (`stdin.end()` ➔ `SIGTERM` ➔ `SIGKILL`). Automatischer Wiederanlauf nach Crash.
+  - **`src/telegram/dispatcher.mjs`:** Transaktionale Abarbeitung aus SQLite-Queue (`tasks` ➔ `DISPATCHING`). Sequentieller Dispatch, Warten auf `agent_settled`, Abruf von `getLastAssistantText()`, Einspeisung in Outbox-Chunks und Abschluss (`COMPLETED`).
+  - **Lifecycle-Befehle:** `/stop` (Abort & Wait for Idle), `/restart` (Supervisor-Neustart mit `--continue`), `/new` (Frische Sitzung), `/continue` (Sitzungsstatusprüfung), `/status` (Aggregierte Uptime, Token/Kontext, Queue).
+  - **Crash-Sicherheit & `UNCERTAIN`:** Bricht Pi während eines laufenden Auftrags ab, wechselt der Task verbindlich in `UNCERTAIN` (kein blindes Auto-Retry wegen potenzieller Nebenwirkungen in Shell/Dateisystem). Alarmierung via Telegram mit Stderr-Auszug.
+
+---
+
+## 3. Bestätigte Qualitäts- & Testprüfungen
+
+- `npm test`: **97 von 97 Tests bestanden** (100%).
+- `npm run check`: **27 JavaScript-Dateien syntaxgeprüft**; DOM-Senken-Guard, Schema-Validierung und Konformität bestätigt.
+- `npm run schema:check`: Ajv-Schema-Kompilierung im Strict-Modus und Negativtests bestanden.
+- `npm run status:validate`: Validierung erfolgreich.
+- `npm run smoke`: Serverstart mit Loopback, Routing-Allowlist und Origin-Blockierung verifiziert.
+- `npm run test:browser`: Playwright E2E-Lauf (Chromium) inklusive Barrierefreiheit (Axe-Core WCAG A/AA) vollständig bestanden.
+
+---
+
+## 4. Nächste anstehende Schritte
+
+1. **Slice 3: Interactive Prompt Answering & Dashboard Privacy Isolation:**
+   - Anpassung `pi-dashboard-extension.mjs`: Stummschaltung des Status-Writers bei gesetztem Flag `PI_BRIDGE_MANAGED=1`.
+   - RPC UI Handler: Automatische Genehmigung von `confirm`-Abfragen für den autorisierten Betreiber.
+   - Weiterleitung von interaktiven Fragen (`select`, `input`, Fragen-Tools) an Telegram und Rückspeisung via `extension_ui_response`.
+2. **Slice 4: Guided Setup, systemd --user Service & Host-Integration:**
+   - Interaktives Setup-Skript (`scripts/setup-telegram.mjs`) mit Token-Validierung via `getMe`.
+   - Erstellung von `~/.config/pi-dashboard/telegram.env` mit Modus `0600`.
+   - `systemd --user` Service-Unit mit `UMask=0077` und `KillMode=control-group`.
+3. **Code-Umsetzung & Verifikation der Slices:**
+   - Implementierung der Komponenten in `src/telegram/` und Ausführung der Testsuite `test/telegram-*.test.mjs`.
+
+---
+
+## 5. Anweisung zur Wiederaufnahme
 
 Bei Start einer neuen Sitzung:
 1. Verzeichnis betreten: `cd /home/imp/Dokumente/imp-projekte/pi-dashboard`
-2. Git-Status und Branch prüfen: `git status --short --branch && git branch --show-current` (muss auf `antiG-work` sein)
+2. Git-Status prüfen: `git status --short --branch` (muss auf `main` sein)
 3. Handoff lesen: `cat HANDOFF.md`
-4. Test-Suite ausführen: `npm test && npm run check && npm run smoke`
-
+4. Test-Suite ausführen: `npm test && npm run check`
+5. Nahtlos mit Slice 3 oder der Implementierung von Slice 1/2 fortfahren.
